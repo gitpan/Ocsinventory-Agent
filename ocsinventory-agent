@@ -1,0 +1,554 @@
+#!/usr/bin/perl
+
+eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
+# forcer un upload si changement en local
+# ajouter /etc/ocsinventory-agent.conf
+
+use strict;
+use warnings;
+
+use lib 'lib';
+use Getopt::Long;
+
+use Ocsinventory::Logger;
+use Ocsinventory::Agent::XML::Inventory;
+use Ocsinventory::Agent::XML::Prolog;
+
+use Ocsinventory::Agent::Network;
+use Ocsinventory::Agent::Backend;
+use Ocsinventory::Agent::AccountConfig;
+use Ocsinventory::Agent::AccountInfo;
+#use Ocsinventory::Agent::Pid;
+use Ocsinventory::Agent::Config;
+
+use Ocsinventory::Agent::CompatibilityLayer;
+
+our $VERSION = '0.0.8';
+
+my $basedir = '';
+#$basedir = 'c:/cvs_ocs/ocsinventory-agent';
+# default settings;
+my $params = { 
+  'debug'     =>  0,
+  'daemon'    =>  0,
+  'force'     =>  0,
+  'help'      =>  0,
+  'info'      =>  1,
+  'local'     =>  '',
+  #'logger'    =>  'Syslog,File,Stderr',
+  'logger'    =>  'Stderr',
+  'logfile'   =>  'ocsinventory-agent.log',
+  'password'  =>  '',
+  'realm'     =>  '',
+  'remotedir' =>  '/ocsinventory', # deprecated, give a complet URL to
+                                   # --server instead
+  'server'    =>  'http://ocsinventory-ng/ocsinventory',
+  'stdout'    =>  0,
+  'tag'       =>  '',
+  'user'      =>  '',
+  'version'   =>  '0',
+  'wait'      =>  '0',
+#  'xml'       =>  0,
+  'nosoft'    =>  0,
+
+  # Other values that can't be changed with the
+  # CLI parameters
+  'VERSION'   => $VERSION,
+  'delaytime' =>  '1', # max delay time (hour)
+  'deviceid'  => '',
+  'basevardir'=>  $basedir.'/var/lib/ocsinventory-agent',
+  'logdir'    =>  $basedir.'/var/log/ocsinventory-agent',
+#  'pidfile'   =>  $basedir.'/var/run/ocsinventory-agent.pid',
+};
+
+# Load setting from the config file
+my $config = Ocsinventory::Agent::Config::get;
+$params->{$_} = $config->{$_} foreach (keys %$config);
+
+$ENV{LC_ALL} = 'C'; # Turn off localised output for commands
+$ENV{LANG} = 'C'; # Turn off localised output for commands
+
+my %options = (
+  "d|daemon"        =>   \$params->{daemon},
+  "debug"           =>   \$params->{debug},
+  "f|force"         =>   \$params->{force},
+  "h|help"          =>   \$params->{help},
+  "i|info"          =>   \$params->{info},
+  "l|local=s"       =>   \$params->{local},
+  "logfile=s"       =>   \$params->{logfile},
+  "p|password=s"    =>   \$params->{password},
+  "r|realm=s"       =>   \$params->{realm},
+  "R|remotedir=s"   =>   \$params->{remotedir},
+  "s|server=s"      =>   \$params->{server},
+  "stdout"          =>   \$params->{stdout},
+  "t|tag=s"         =>   \$params->{tag},
+  "u|user=s"          =>   \$params->{user},
+  "version"         =>   \$params->{version},
+  "w|wait"          =>   \$params->{wait},
+#  "x|xml"           =>   \$params{xml},
+  "nosoft"          =>   \$params->{nosoft},
+);
+
+##########################################
+##########################################
+##########################################
+##########################################
+sub recMkdir {
+  my $dir = shift;
+
+  my @t = split /\//, $dir;
+  shift @t;
+  return unless @t;
+
+  my $t;
+  foreach (@t) {
+    $t .= '/'.$_;
+    if ((!-d $t) && (!mkdir $t)) {
+      return;
+    }
+  }
+  1;
+}
+
+
+sub help {
+  my $error = shift;
+  if ($error) {
+    chomp $error;
+    print "ERROR: $error\n\n";
+  }
+
+  if ($config->{configfile}) {
+      print STDERR "Setting initialised with values retrieved from ".
+      "the config found at ".$config->{configfile}."\n";
+  }
+
+  print STDERR "\n";
+  print STDERR "Usage:\n";
+  print STDERR "\t-d  --daemon         detach the agent in background \n";
+  print STDERR "\t    --debug          debug mode (".$params->{debug}.")\n";
+  print STDERR "\t-f --force          always send data to server (Don't ask before) ($params->{force})\n";
+  print STDERR "\t-i --info           verbose mode (".$params->{info}.")\n";
+  print STDERR "\t-l --local=DIR      do not contact server but write ".
+  "inventory in DIR directory in XML (".$params->{local}.")\n";
+  print STDERR "\t   --logfile=FILE   log message in FILE\n";
+  print STDERR "\t-p --password=PWD   password for server auth\n";
+  print STDERR "\t-r --realm=REALM    realm for server auth. e.g: 'Restricted Area' \n";
+  print STDERR "\t-s --server=uri     server uri (".$params->{server}.")\n";
+  print STDERR "\t   --stdout         do not write or post the inventory but print it on STDOUT\n";
+  print STDERR "\t-t --tag=TAG        use TAG as tag (".$params->{tag}."). ".
+  "Will be ignored by server if a value already exists.\n";
+  print STDERR "\t-u --user=USER      user for server auth\n";
+  print STDERR "\t   --version        print the version\n";
+  print STDERR "\t-w --wait           wait during a random periode before".
+  "  contacting server like --daemon do (".$params->{wait}.")\n";
+#  print STDERR "\t-x --xml            write output in a xml file ($params->{xml})\n";
+  print STDERR "\t--nosoft           do not return installed software list\n";
+
+  print STDERR "\n";
+  print STDERR "Manpage:\n";
+  print STDERR "\tSee man ocsinventory-agent\n";
+
+  print STDERR "\n";
+  print STDERR "Ocsinventory-Agent is released under GNU GPL 2 license\n";
+  exit 1;
+}
+
+sub version {
+  print "Ocsinventory unified agent for UNIX and Linux (".$VERSION.")\n";
+  exit 0;
+}
+
+# TODO
+#sub savepid {
+#  my $pidfile = shift;
+#
+#  my $lastpid;
+#
+#  if (open PIDFILE, "<,$pidfile" ) {
+#    my ($lastpid) = <PIDFILE>;
+#    print $lastpid;
+#  }
+#}
+#####################################
+################ MAIN ###############
+#####################################
+
+
+############################
+#### CLI parameters ########
+############################
+help() if (!GetOptions(%options) || $params->{help});
+version() if $params->{version};
+
+# I close STDERR to avoid error message during the module execution
+# at the begining I was doing shell redirection:
+#  my @ret = `cmd 2> /dev/null`;
+# but this syntax is not supported on (at least) FreeBSD and Solaris
+# c.f: http://www.perlmonks.org/?node_id=571072
+my $tmp;
+open ($tmp, ">&STDERR");
+$params->{"savedstderr"} = $tmp;
+if($params->{debug}) {
+  $params->{verbose} = 1;
+} else {
+  close(STDERR);
+}
+
+my $logger = new Ocsinventory::Logger ({
+
+    params => $params
+
+  });
+
+
+############################
+#### Objects initilisation 
+############################
+
+# The agent can contact different servers. Each server accountconfig is
+# stored in a specific file:
+if (!recMkdir ($params->{basevardir})) {
+
+  if (! -d $ENV{HOME}."/.ocsinventory/var") {
+    $logger->info("Failed to create $params->{basevardir} directory: $!. ".
+      "I'm going to use the home directory instead (~/.ocsinventory/var).");
+  }
+
+  $params->{basevardir} = $ENV{HOME}."/.ocsinventory/var";
+  if (!recMkdir ($params->{basevardir})) {
+    $logger->error("Failed to create $params->{basedir} directory: $!".
+    "The HOSTID will not be written on the harddrive. You may have duplicated ".
+    "entry of this computer in your OCS database");
+  }
+  $logger->debug("var files are stored in ".$params->{basevardir});
+}
+
+if (defined($params->{local}) && $params->{local}) {
+  $params->{vardir} = $params->{basevardir}."/__LOCAL__";
+} else {
+  my $dir = $params->{server};
+  $dir =~ s/\//_/g;
+  $params->{vardir} = $params->{basevardir}."/".$dir;
+}
+if (!recMkdir ($params->{vardir})) {
+  $logger->error("Failed to create $params->{vardir} directory: $!");
+}
+
+if (-d $params->{vardir}) {
+  $params->{conffile} = $params->{vardir}."/ocsinv.conf";
+  $params->{accountinfofile} = $params->{vardir}."/ocsinv.adm";
+  $params->{last_statefile} = $params->{vardir}."/last_state";
+}
+######
+
+
+# load CFG files
+my $accountconfig = new Ocsinventory::Agent::AccountConfig({
+    logger => $logger,
+    params => $params,
+  });
+
+my $srv = $accountconfig->get('OCSFSERVER');
+$params->{server} = $srv if $srv;
+$params->{deviceid}   = $accountconfig->get('DEVICEID');
+
+# Should I create a new deviceID?
+chomp(my $hostname = `uname -n| cut -d . -f 1`);
+if ((!$params->{deviceid}) || $params->{deviceid} !~ /\Q$hostname\E-(?:\d{4})(?:-\d{2}){5}/) {
+  my ($YEAR, $MONTH , $DAY, $HOUR, $MIN, $SEC) = (localtime
+    (time))[5,4,3,2,1,0];
+  $params->{old_deviceid} = $params->{deviceid};
+  $params->{deviceid} =sprintf "%s-%02d-%02d-%02d-%02d-%02d-%02d",
+  $hostname, ($YEAR+1900), ($MONTH+1), $DAY, $HOUR, $MIN, $SEC;
+  $accountconfig->set('DEVICEID',$params->{deviceid});
+  $accountconfig->write();
+}
+
+my $accountinfo = new Ocsinventory::Agent::AccountInfo({
+
+    logger => $logger,
+    params => $params,
+
+  });
+
+if ($params->{tag}) {
+  if ($accountinfo->get("TAG")) {
+    $logger->debug("A TAG seems to already exist in the server for this".
+      "machine. If so, the -t paramter is useless. Please change the TAG".
+      "directly on the server.");
+  } else {
+    $accountinfo->set("TAG",$params->{tag});
+  }
+}
+
+# Create compatibility layer. It's used to keep compatibility with the
+# linux_agent 1.x and below
+my $compatibilityLayer = new Ocsinventory::Agent::CompatibilityLayer({
+
+    accountinfo => $accountinfo,
+    accountconfig => $accountconfig,
+    logger => $logger,
+    params => $params,
+
+  });
+
+if ($params->{daemon}) {
+  
+  $logger->debug("Time to call Proc::Daemon");
+  eval { require Proc::Daemon; };
+  if ($@) {
+      print "Can't load Proc::Daemon. Is the module installed?";
+      exit 1;
+  }
+  Proc::Daemon::Init();
+  $logger->debug("Daemon started");
+#  $pid = new Ocsinventory::Agent::Pid ({
+#      logger => $logger,
+#      params => $params,
+#    });
+  
+}
+
+$logger->debug("OCS Agent initialised");
+#######################################################
+#######################################################
+do {{ # double braces needed by the 'next', see 'do' in perlfunc and perlsyn
+
+  if ($params->{daemon} || $params->{wait}) {
+    my $serverdelay = $accountconfig->get('PROLOG_FREQ');
+    my $delay = int
+    rand(($serverdelay?$serverdelay:$params->{delaytime})*3600);
+    $logger->info("Going to sleep for $delay second(s)");
+    sleep ($delay);
+  }
+
+  $compatibilityLayer->hook({name => 'start_handler'});
+
+  my $inventory = new Ocsinventory::Agent::XML::Inventory ({
+
+	  accountinfo => $accountinfo,
+	  accountconfig => $accountinfo,
+	  logger => $logger,
+	  params => $params,
+
+      });
+
+
+  if ($params->{stdout} || $params->{local}) { # Local mode
+
+      my $inventory = new Ocsinventory::Agent::XML::Inventory ({
+
+	      # TODO, check if the accoun{info,config} are needed in localmode
+	      accountinfo => $accountinfo,
+	      accountconfig => $accountinfo,
+	      logger => $logger,
+	      params => $params,
+
+	  });
+
+      if ($params->{stdout}) {
+	  $inventory->printXML();
+      } elsif ($params->{local}) {
+	  $inventory->writeXML();
+      }
+
+  } else { # I've to contact the server
+
+    my $net = new Ocsinventory::Agent::Network ({
+	
+	accountconfig => $accountconfig,
+	accountinfo => $accountinfo,
+	compatibilityLayer => $compatibilityLayer,
+	logger => $logger,
+	params => $params,
+      });
+
+    my $sendInventory = 1;
+    my $prologresp;
+    if (!$params->{force}) {
+      my $prolog = new Ocsinventory::Agent::XML::Prolog({
+
+	  accountinfo => $accountinfo,
+	  logger => $logger,
+	  params => $params,
+
+	});
+
+      $prologresp = $net->send({message => $prolog});
+      next unless $prologresp; # Failed to reach the server
+      $sendInventory = 1 if  $prologresp->isInventoryAsked();
+    }
+
+    if ($sendInventory) {
+
+	my $inventory = new Ocsinventory::Agent::XML::Inventory ({
+
+		# TODO, check if the accoun{info,config} are needed in localmode
+		accountinfo => $accountinfo,
+		accountconfig => $accountinfo,
+		logger => $logger,
+		params => $params,
+		prologresp => $prologresp,
+
+	    });
+
+      if (my $response = $net->send({message => $inventory})) {
+	if ($response->isAccountUpdated()) {
+	  $inventory->saveLastState();
+	}
+      }
+
+    } else {
+      $logger->info("Don't send the inventory"); 
+    }
+  }
+  $compatibilityLayer->hook({name => 'end_handler'});
+
+}} while ($params->{daemon});
+
+__END__
+
+=head1 NAME
+
+ocsinventory-agent - Unified client for OCS-Inventory
+
+=head1 SYNOPSIS
+
+B<ocsinventory-agent> S<[ B<-fhilpruw> ]> S<[ I<--server server> | I<--local /tmp> ]>...
+
+=head1 EXAMPLES
+
+    % ocsinventory-agent --server localhost
+    # sent an inventory to the OCS server
+    
+    % ocsinventory-agent --server http://localhost/ocsinventory2
+    # sent an inventory over http to a server with a non standard
+    # virtual directory
+
+    % ocsinventory-agent --server https://localhost/ocsinventory
+    # sent an inventory over https to the OCS server
+
+    % ocsinventory-agent --local /tmp
+    # write an inventory in the /tmp directory
+    
+    % ocsinventory-agent --server localhost --user=toto --password=pw
+    # send a report to a server protected by a basic authentification 
+
+=head1 DESCRIPTION
+
+F<ocsinventory-agent> creates inventory and sent or write them.
+
+=head1 OPTIONS
+
+Most of the options are available in a I<short> form and a I<long> form.  For
+example, the two lines below are all equivalent:
+
+    % ocsinventory-agent -s localhost 
+    % ocsinventory-agent --server localhost 
+
+=over 4
+
+=item B<-d>, B<--daemon>
+
+Launch ocsinventory-agent in background. Proc::Daemon is needed.
+
+=item B<--debug>
+
+Turn the debug mode on.
+
+=item B<-f>, B<--force>
+
+The agent will first contact the server during the PROLOG period. If the server doesn't know the machin or have outdated information, it will ask for an inventory.
+With this option, the agent doesn't run the PROLOG with the server first but directly send an inventory.
+
+=item B<-i>, B<--info>
+
+Turn the verbose mode on. The flag is ignored if B<--debug> is enable.
+
+=item B<-l>, B<--local>=I<DIR>
+
+Write an inventory in the I<DIR> directory. A new file will be created if needed.
+
+=item B<--logfile>=I<FILE>
+
+Log message in I<FILE>.
+
+=item B<-p>, B<--password>=I<PASSWORD>
+
+Use I<PASSWORD> for an HTTP identification with the server.
+
+=item B<-r>, B<--realm>=I<REALM>
+
+Use I<REALM> for an HTTP identification with the server. For example, the value can be 'Restricted Area'. You can find it in the login popup of your Internet browser.
+
+=item B<-s>, B<--server>=I<URI>
+
+The uri of the server. If I<URI> doesn't start with http:// or https://, the assume the parameter is a hostname and rewrite it like that:
+
+    % http://servername/ocsinventory
+
+If you want to use https or another virtual directory you need to enter the full path.
+
+=item B<--stdout>
+
+Print the inventory on stdout.
+
+    % ocsinventory-agent --stdout > /tmp/report.xml
+    # prepare an inventory and write it in the /tmp/report.xml file.
+    # A file will be created.
+
+=item B<--tag>=I<TAG>
+
+Mark the machin with the I<TAG> tag. Once the initial inventory is accepted by the server this value is ignored and you've to change the information directly on the server.
+
+=item B<-u>, B<--user>=I<USER>
+
+Use I<USER> for the server authentification.
+
+=item B<--version>=I<USER>
+
+Print the version and exit.
+
+=item B<-w>, B<--wait>
+
+Wait during a random period and then send the report to the server
+
+    % ocsinventory-agent --wait --server localhost
+
+=item B<--nosoft>
+
+Do not inventory the software installed on the machin.
+
+=head1 AUTHORS
+
+Goneri LE BOUDER (maintainer), Pascal DANEK, Olivier ANDREOTTI, Thierry LACOSTE, Didier LIROULET
+
+=head1 COPYRIGHT
+
+Copyright (C) 2006 2007 Gonéri LE BOUDER <goneri@rulezlan.org> 
+
+Copyright (C) 2005 2006 Pascal DANEK <pascal.danek@gmail.com>
+
+Copyright (C) 2007 Olivier ANDREOTTI <olivier.andreotti@gmail.com>
+
+Copyright (C) 2007 Thierry LACOSTE <lacoste@univ-paris12.fr>
+
+Copyright (C) 2007 Didier LIROULET <dliroulet@users.sourceforge.net>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+=cut

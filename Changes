@@ -1,0 +1,119 @@
+Revision history for Ocsinventory::Agent
+
+0.0.8 02/05/2008
+       * fix the deviceid and old_deviceid handling (Pascal DANEK)
+       * fix a debug message in Network.pm (Pascal DANEK)
+       * different fixes on Compress.pm (Pascal DANEK)
+       * fix an event message name in Option/Download.pm (Pascal DANEK)
+       * fix the Compatibility Layer with prolog_read hook (Pascal DANEK)
+       * merge PowerPC and PC code to detect the CPU and improve/fix the regex
+       * looks for config file in /etc/ocsinventory /usr/local/etc/ocsinventory and
+         /etc/ocsinventory-agent
+       * add a pod documentation about the different config files and directories
+       * Compress::Zlib is required but recommended now. In fact, you need it with
+         ocs server prior 1.02
+
+0.0.7.2 01/16/2008
+       * fix the post installation script to avoid invalid cron time
+
+0.0.7.1 01/14/2008
+       * add setup.sh in the MANIFEST.SKIP to keep it out of the tarball
+
+0.0.7 01/13/2008
+       * Ocsinventory::Agent::AccountInfo does not warn accountinfofile if runned in debug mode
+         without root privilege
+       * fix params->{etcdir} to /etc/ocsinventory, /etc/ocsinventory-agent/modules.conf must be moved
+         to /etc/ocsinventory/modules.conf
+       * Solaris: Improve the CPU detection (Olivier ROUSSY)
+       * AIX: Return the directory with the AIX package name (Olivier ROUSSY)
+       * Ocsinventory::Agent::XML::Inventory can now write software inventory
+         value of FILESIZE, FOLDER and PUBLISHER
+       * processChecksum() and feedInventory() are called by Ocsinventory::Agent::XML::Inventory
+         directly now
+       * the server responses are not parsed in the main script anymore
+       * do not create an inventory if the server doesnn't need it
+       * new parameters for the backend modules (run and check functions):
+         - prologresp, the Ocsinventory::Agent::XML::Response::Prolog object returned by
+	   the prolog
+	 - storage: an hashref stored on the harddrive at the end of the execution of the module
+       * a backend module without a run function is accepted now 
+       * Inventory.pm: add addIpDiscoverEntry() to add host from the same network
+       * @runMeIfTheseChecksFailed: new optional setting for Backend module
+       * Ipdiscover is now a backend module and nmap can be used instead of ipdiscover
+       * --nosoft disable the Ocsinventory::Agent::Backend::OS::Generic::Packaging modules
+       * Remove the deprecated modules Ocsinventory::Agent::Option::Ipdiscover and
+            Ocsinventory::Agent::Option::Update
+       * the check function of the backend accepts the same parameter than the run function
+       * Linux::Archs::I386 regex are more robust
+       * perldoc documentation for the ocsinventory-agent command
+       * minor improvment on the Makefile.PL
+       * change the way --server parameter is read. Now we can have a full URL, --remotedir
+         is now useless
+       * fix: correctly load the last_state
+       * improve the Makefile.PL by using inc::Module::Install and adding new check 
+       * add a --version parameter and improve the --help
+       * come with bundled dependency to simply the build process
+       * fix the login/passwd/realm authentification
+       * remove Agent/Pid.pm, I've to prepare a better system to keep the pid first
+       * try to read the config in /usr/local/etc/ocsinventory/ocsinventory-agent.cfg if the
+         standard one is missing
+
+0.0.6.2 07/16/2007 Bug fix release
+
+       * remove a debug "die" in the code
+
+0.0.6.1 06/12/2007 Bug fix release 
+       * Fix an undef value in Ocsinventory::Agent::Backend::OS::BSD::Mem
+       * AIX: retrieve correctly the MAC address of some FibberChannel card 
+       * now standalone.sh will try to find every module before the build to
+         avoid unexplicated error
+
+0.0.6  06/07/2007
+       * Enable "verbose" is debug is turned on
+       * AIX: Ocsinventory::Agent::Backend::OS::AIX::Networks rewrote
+       * AIX: Memory.pm, remove the spaces from the end of the DESCRIPTION
+       * add standalone.sh, a script designed to prepare a stand-alone binary of the agent
+       * AIX: Retrieve all the gateway of every subnet instead of just the default one
+       * Config.pm renamed to AccountConfig.pm
+       * New flag: --stdout to print the inventory directly on STDOUT
+       * If the use want write on the system var directory, the agent create one in
+         ~/.ocsinventory/var
+       * The agent setting can be preinitialised with /etc/ocsinventory/ocsinventory-agent.cfg or
+         ~/ocsinventory/ocsinventory-agent.cfg.
+       * remove two debug messages printed during accountinfo rewrite and the
+         daemon starting process
+       * remove a stupid check in Ocsinventory::Agent::AccountConfig, the
+         accountconfig file was not written unless the file was already present
+       * add a recMkdir function in ocsinventory-agent to create directory recursivly
+       * do not process checksum in local mode 
+
+0.0.5  04/17/2007
+       * AIX: use lslpp -c -l to find installed packages
+       * AIX: fixes on CPU.pm, Networks.pm and Memory.pm
+       * AIX: fetch the serial number with lscfg unless it was found with lsvpd
+       * add the .ocs extension to local written files
+       * with --local flag: don't not warn if last_state doesn't exit
+       * Solaris: retrieve installed package
+       * downgrade some message important from info to debug
+       * read screen serial number in the EDID (DDC screen)
+       * Xorg.pm replaced by Screen.pm
+       * Screen.pm all the data are read from EDID now
+       * Initial Linux PPC support (tested in Debian Etch).
+         thanks Walid Nouh for the hardware
+       * Apply patch by Remi Collet to fix an issue with Linux distro detection and Perl 5.6.1
+       * Turn of STDERR during the module execution to avoid useless message (e.g: foo: not found)
+         use --debug to turn them back
+       * If the system side vardir can't be created. The agent try to create one in ~/.ocs-inventory-agent
+       * Add a THANKS file
+
+0.0.4 03/20/2007
+       * use of gzip when Compress:Zlib is not avalaible. OCS server 1.01 and
+         prior are not supported.
+       * dmidecode parsing improved
+       * lspci stuffs moved to generic
+       * Linux: find Wifi connection
+       * fix: pass correctly the logger to the modules
+       * don't write the last_state is the connexion failed
+       * Deals correctly with the accountinfo if it's internaly stored in a
+         array ref
+       * BSD support by Thierry Lacoste 
