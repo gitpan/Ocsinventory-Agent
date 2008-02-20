@@ -1,14 +1,4 @@
 abstract: Ocs-Iventory unified Agent for UNIX and Linux
-bundles:
-  Compress::Zlib: Compress-Zlib-2.008
-  Digest::MD5: Digest-MD5-2.36
-  File::Temp: File-Temp-0.20
-  LWP: libwww-perl-5.808
-  Net::IP: Net-IP-1.25
-  URI: URI-1.35
-  XML::NamespaceSupport: XML-NamespaceSupport-1.09
-  XML::SAX: XML-SAX-0.16
-  XML::Simple: XML-Simple-2.18
 distribution_type: module
 generated_by: Module::Install version 0.64
 license: gpl
@@ -27,4 +17,4 @@ requires:
   Net::IP: 0
   XML::Simple: 0
   perl: 5.6.0
-version: 0.0.8
+version: 0.0.8.1

@@ -80,7 +80,7 @@ if (ask_yn ("Do you need credential for the server? (You probably don't)")) {
     }
     $config{password} = prompt("password");
     print "[note] The realm can be found in the login popup of your Internet browser.\n[note] In general, it's something like 'Restricted Area'.\n";
-    $config{password} = prompt("realm");
+    $config{realm} = prompt("realm");
 }
 
 if (-d "/etc/cron.d") {
@@ -103,6 +103,8 @@ if (!-d $configdir) {
 open CONFIG, ">$configdir/ocsinventory-agent.cfg" or die "Can't write the config file in $configdir: ".$!;
 print CONFIG $_."=".$config{$_}."\n" foreach (keys %config);
 close CONFIG;
+chmod 0600, "$configdir/ocsinventory-agent.cfg";
+
 print "New settings written! Thank you for using OCS Inventory\n";
 
 if (-d "/etc/ocsinventory-client" && ask_yn ("Should I remove the config directory of the old linux agent")) {
