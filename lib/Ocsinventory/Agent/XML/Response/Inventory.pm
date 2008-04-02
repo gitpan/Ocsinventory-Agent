@@ -10,9 +10,10 @@ sub new {
     my $this = $class->SUPER::new(@params);
     bless ($this, $class);
 
-    $this->updatePrologFreq();
-    $this->updateAccountInfo();
-
+    my $parsedContent = $this->getParsedContent();
+    if ($parsedContent && exists ($parsedContent->{RESPONSE}) && $parsedContent->{RESPONSE} =~ /^ACCOUNT_UPDATE$/) {
+      $this->updateAccountInfo();
+    }
     return $this;
 }
 
@@ -28,21 +29,11 @@ sub isAccountUpdated {
 
 }
 
-sub updatePrologFreq {
-    my $self = shift;
-
-    my $parsedContent = $self->getParsedContent();
-    if ($parsedContent && exists ($parsedContent->{PROLOG_FREQ})) {
-	$self->{accountconfig}->set("PROLOG_FREQ", $parsedContent->{PROLOG_FREQ});
-    }
-}
-
 sub updateAccountInfo {
     my $self = shift;
 
     my $parsedContent = $self->getParsedContent();
-    if ($parsedContent && exists ($parsedContent->{ACCOUNTINFO})) {
-	$self->{accountinfo}->reSetAll($parsedContent->{ACCOUNTINFO});
-    }
+
+    $self->{accountinfo}->reSetAll($parsedContent->{ACCOUNTINFO});
 }
 1;

@@ -32,6 +32,8 @@ sub run {
     my $media;
     my $type;
     my $capacity;
+    my $firmware;
+    my $serialnumber;
 
 # Parse info from /sys
     if (open VENDOR, "/sys/block/$device/device/vendor") {
@@ -67,8 +69,10 @@ sub run {
     }
 
     if (!$manufacturer) {
-      if($model =~ /(maxtor|western|sony|compaq|hewlett packard|ibm|seagate|toshiba|fujitsu|lg|samsung)/i){
+      if($model =~ /(maxtor|western|sony|compaq|hewlett packard|ibm|seagate|toshiba|fujitsu|lg|samsung|nec)/i) {
 	$manufacturer=$1;
+      } elsif ($model =~ /^ST/) {
+	$manufacturer="seagate";
       }
     }
 
@@ -84,13 +88,24 @@ sub run {
     chomp ($capacity = `fdisk -s /dev/$device 2>/dev/null`);
     $capacity = int ($capacity/1000) if $capacity;
 
+    #Serial & Firmware
+    `which hdparm 2>&1`;
+    if (($? >> 8) == 0 ) {
+      foreach (`hdparm -I /dev/$device`) {
+         $serialnumber = $1 if /^\s+Serial Number\s*:\s*(.+)/i;
+          $firmware = $1 if /^\s+Firmware Revision\s*:\s*(.+)/i;
+      }
+    }
+
     $inventory->addStorages({
 	NAME => $device,
 	MANUFACTURER => $manufacturer,
 	MODEL => $model,
 	DESCRIPTION => $description,
 	TYPE => $media,
-	DISKSIZE => $capacity
+	DISKSIZE => $capacity,
+	SERIALNUMBER => $serialnumber,
+	FIRMWARE => $firmware,
       });
 
   }

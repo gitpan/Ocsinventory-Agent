@@ -15,7 +15,7 @@ use Config qw(config_re);
 
 name 'Ocsinventory-Agent';
 include 'Module::AutoInstall';
-abstract 'Ocs-Iventory unified Agent for UNIX and Linux';
+abstract 'Ocs-Inventory unified Agent for UNIX and Linux';
 license 'gpl';
 version_from 'ocsinventory-agent';
 perl_version '5.006';
@@ -28,6 +28,16 @@ recommends 'Compress::Zlib';
 recommends 'Proc::Daemon' => undef;
 
 install_script  'ocsinventory-agent';
+bundle 'Compress::Zlib' => undef;
+bundle 'Digest::MD5' => undef;
+bundle 'File::Temp' => undef;
+bundle 'Net::IP' => undef;
+bundle 'XML::Simple' => undef;
+bundle 'XML::SAX' => undef;
+bundle 'XML::NamespaceSupport' => undef;
+bundle 'URI' => undef;
+bundle 'LWP' => undef;
+
 
 if (defined ($ENV{PERL_AUTOINSTALL}) || defined ($ENV{PERL_AUTOINSTALL})) {
     unlink 'run-postinst';  
@@ -69,5 +79,7 @@ if ($^O =~ /(linux|bsd)/i && $t[0] =~ /(i[3456x]86)/) {
     }
 }
 
-auto_install;
+#for i in inc/BUNDLES/* ; do rm -rf `basename $i` ;done`
+#auto_install;
 WriteAll;
+

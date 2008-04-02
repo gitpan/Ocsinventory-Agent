@@ -1,5 +1,39 @@
 Revision history for Ocsinventory::Agent
 
+0.0.9 04/01/2008 April Fool release!
+       * Added fallback for --lazy if no prolog freq was found and server error (Pascal DANEK)
+       * Fixed accountinfos handling bugs (Pascal DANEK)
+       * Changed --wait behaviour (--wait=number_of_seconds || "server") (Pascal DANEK)
+       * PROLOG_FREQ is handled in prolog phase (Pascal DANEK)
+       * the random value for file_nexttime is computed only if prolog_freq has changed since last prolog (Pascal DANEK)
+       * import the documentation documentation by adding a description of the
+         agent and pointer to the official website
+       * --nosoft option renamed to --nosoftware, --nosoft still works but with a warning
+       * add --basevardir to be able to use a specific place to store the var file
+       * add the --lazy parameter: send an inventory only if the a random delay between 0 and PROLOG_FREQ had been run over. Usefull for package maintainer (Remi COLLET)
+       * return 1 to the shell is the agent failed to contact the server
+       * postinst.pl asks for the basevardir
+       * postinst.pl write the modules.conf 
+       * OS::Linux::Network::Networks, correctly reset the ipaddress before every loop so
+         now a network can't have the address of the previous one
+       * rename the key $params->{conffile} to $params->{accountconfig}
+       * fix the way accountinfo information are stored
+       * improve (a bit) tools/standalone.sh to avoid error if people launch it
+         from the tools directory
+       * --server is ignore if --local is in use
+       * adjust Backend::OS::Generic::Screen to be able to use monitor-edid with DVI link (Remi COLLET)
+       * OS::Linux::Storages, add NEC as a know manufacturer add assume the manifacturer is Seagate if
+         the model doesn't match the others and begin with ST (rjhill)
+       * fix the CPU detection on Linux Sparc64 and ARM (Linksys NSLU2)
+       * improve the Solaris version detection by reading the /etc/release file (Nicolas DORFSMAN)
+       * Solaris: fix the MAC addresses when the leading zeros is missing (Jean-Jacques MICHEL)
+       * Solaris: Add publisher is possible in the software list (Nicolas DORFSMAN)
+       * Solaris: improve the hard drive detection (Nicolas DORFSMAN)
+       * postinst.pl can remove the previous linux_agent
+       * postinst.pl reuse linux_agent old config file to set the default server and tag
+       * return the SERIALNUMBER and the FIRMWARE on Linux with hdparm, the feature is not supported
+         yet by the server (egamin)
+
 0.0.8.1 02/20/2008
        * postinst.pl, correctly save the realm, do not override the password 
        * Added "CAPTION" field to memory (Pascal DANEK)

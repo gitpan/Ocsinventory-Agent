@@ -1,0 +1,51 @@
+***************
+*** 86,105 ****
+      chomp ($capacity = `fdisk -s /dev/$device 2>/dev/null`);
+      $capacity = int ($capacity/1000) if $capacity;
+  
+      $inventory->addStorages({
+         NAME => $device,
+         MANUFACTURER => $manufacturer,
+         MODEL => $model,
+         DESCRIPTION => $description,
+         TYPE => $media,
+-        DISKSIZE => $capacity
+        });
+- 
+    }
+  
+- 
+- 
+- 
+  }
+  
+  1;
+--- 88,115 ----
+      chomp ($capacity = `fdisk -s /dev/$device 2>/dev/null`);
+      $capacity = int ($capacity/1000) if $capacity;
+  
++     #Serial & Firmware
++     `which hdparm 2>&1`;
++     if (($? >> 8) == 0 ) {
++       foreach (`hdparm -I /dev/$device`) {
++          $serialnumber = $1 if /^\s+Serial Number\s*:\s*(.+)/i;
++           $firmware = $1 if /^\s+Firmware Revision\s*:\s*(.+)/i;
++       }
++     }
++ 
+      $inventory->addStorages({
+         NAME => $device,
+         MANUFACTURER => $manufacturer,
+         MODEL => $model,
+         DESCRIPTION => $description,
+         TYPE => $media,
++        DISKSIZE => $capacity,
++        SERIALNUMBER => $serialnumber,
++        FIRMWARE => $firmware,
+        });
++     
+    }
+  
+  }
+  
+  1;

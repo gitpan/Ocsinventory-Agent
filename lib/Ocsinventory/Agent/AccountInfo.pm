@@ -68,19 +68,17 @@ sub reSetAll {
 
   my $logger = $self->{logger};
 
+  undef $self->{accountinfo};
+
   if (ref ($ref) =~ /^ARRAY$/) {
     foreach (@$ref) {
-      $self->set($_->{NAME}, $_->{VALUE});
+      $self->set($_->{KEYNAME}, $_->{KEYVALUE});
     }
   } elsif (ref ($ref) =~ /^HASH$/) {
-    foreach (keys %{$ref}) {
-      $self->set($_, $ref->{$_});
-      #print "$_ => $ref->{$_}\n";
-    }
+      $self->set($ref->{'KEYNAME'}, $ref->{'KEYVALUE'});
   } else {
     $logger->debug ("reSetAll, invalid parameter");
   }
-
 }
 
 # Add accountinfo stuff to an inventary
@@ -116,7 +114,6 @@ sub write {
   }
 
   my $xml=XML::Simple::XMLout( $tmp, RootName => 'ADM' );
-
 
   my $fault;
   if (!open ADM, ">".$self->{params}->{accountinfofile}) {

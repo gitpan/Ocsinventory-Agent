@@ -108,11 +108,11 @@ sub addDrives {
 
   push @{$self->{h}{CONTENT}{DRIVES}},
   {
-    FREE => [$free?$free:"??"],
-    FILESYSTEM => [$filesystem?$filesystem:"??"],
-    TOTAL => [$total?$total:"??"],
-    TYPE => [$type?$type:"??"],
-    VOLUMN => [$volumn?$volumn:"??"]
+    FREE => [$free?$free:''],
+    FILESYSTEM => [$filesystem?$filesystem:''],
+    TOTAL => [$total?$total:''],
+    TYPE => [$type?$type:''],
+    VOLUMN => [$volumn?$volumn:'']
   };
 }
 
@@ -120,22 +120,25 @@ sub addStorages {
   my ($self, $args) = @_;
 
   my $description = $args->{DESCRIPTION};
-  my $disksize =  $args->{DISKSIZE};
+  my $disksize = $args->{DISKSIZE};
   my $manufacturer = $args->{MANUFACTURER};
   my $model = $args->{MODEL};
   my $name = $args->{NAME};
   my $type = $args->{TYPE};
-
+  my $serialnumber = $args->{SERIALNUMBER};
+  my $firmware = $args->{FIRMWARE};
 
   push @{$self->{h}{CONTENT}{STORAGES}},
   {
 
-    DESCRIPTION => [$description?$description:"??"],
-    DISKSIZE => [$disksize?$disksize:"??"],
-    MANUFACTURER => [$manufacturer?$manufacturer:"??"],
-    MODEL => [$model?$model:"??"],
-    NAME => [$name?$name:"??"],
-    TYPE => [$type?$type:"??"],
+    DESCRIPTION => [$description?$description:''],
+    DISKSIZE => [$disksize?$disksize:''],
+    MANUFACTURER => [$manufacturer?$manufacturer:''],
+    MODEL => [$model?$model:''],
+    NAME => [$name?$name:''],
+    TYPE => [$type?$type:''],
+    SERIALNUMBER => [$serialnumber?$serialnumber:''],
+    FIRMWARE => [$firmware?$firmware:'']
 
   };
 }
@@ -150,16 +153,18 @@ sub addMemories {
   my $caption = $args->{CAPTION}; 
   my $numslots = $args->{NUMSLOTS};
 
+  my $serialnumber = $args->{SERIALNUMBER};
 
   push @{$self->{h}{CONTENT}{MEMORIES}},
   {
 
-    CAPACITY => [$capacity?$capacity:"??"],
-    DESCRIPTION => [$description?$description:"??"],
-    CAPTION => [$caption?$caption:"??"],
-    SPEED => [$speed?$speed:"??"],
-    TYPE => [$type?$type:"??"],
-    NUMSLOTS => [$numslots?$numslots:0]
+    CAPACITY => [$capacity?$capacity:''],
+    DESCRIPTION => [$description?$description:''],
+    CAPTION => [$caption?$caption:''],
+    SPEED => [$speed?$speed:''],
+    TYPE => [$type?$type:''],
+    NUMSLOTS => [$numslots?$numslots:0],
+    SERIALNUMBER => [$serialnumber?$serialnumber:'']
 
   };
 }
@@ -176,10 +181,10 @@ sub addPorts {
   push @{$self->{h}{CONTENT}{PORTS}},
   {
 
-    CAPTION => [$caption?$caption:"??"],
-    DESCRIPTION => [$description?$description:"??"],
-    NAME => [$name?$name:"??"],
-    TYPE => [$type?$type:"??"],
+    CAPTION => [$caption?$caption:''],
+    DESCRIPTION => [$description?$description:''],
+    NAME => [$name?$name:''],
+    TYPE => [$type?$type:''],
 
   };
 }
@@ -196,10 +201,10 @@ sub addSlots {
   push @{$self->{h}{CONTENT}{SLOTS}},
   {
 
-    DESCRIPTION => [$description?$description:"??"],
-    DESIGNATION => [$designation?$designation:"??"],
-    NAME => [$name?$name:"??"],
-    STATUS => [$status?$status:"??"],
+    DESCRIPTION => [$description?$description:''],
+    DESIGNATION => [$designation?$designation:''],
+    NAME => [$name?$name:''],
+    STATUS => [$status?$status:''],
 
   };
 }
@@ -218,12 +223,12 @@ sub addSoftwares {
   push @{$self->{h}{CONTENT}{SOFTWARES}},
   {
 
-    COMMENTS => [$comments?$comments:"??"],
-    FILESIZE => [$filesize?$filesize:"??"],
-    FOLDER => [$folder?$folder:"??"],
-    NAME => [$name?$name:"??"],
-    PUBLISHER => [$publisher?$publisher:"??"],
-    VERSION => [$version?$version:"??"],
+    COMMENTS => [$comments?$comments:''],
+    FILESIZE => [$filesize?$filesize:''],
+    FOLDER => [$folder?$folder:''],
+    NAME => [$name?$name:''],
+    PUBLISHER => [$publisher?$publisher:''],
+    VERSION => [$version?$version:''],
 
   };
 }
@@ -240,10 +245,10 @@ sub addMonitors {
   push @{$self->{h}{CONTENT}{MONITORS}},
   {
 
-    CAPTION => [$caption?$caption:"??"],
-    DESCRIPTION => [$description?$description:"??"],
-    MANUFACTURER => [$manufacturer?$manufacturer:"??"],
-    SERIAL => [$serial?$serial:"??"],
+    CAPTION => [$caption?$caption:''],
+    DESCRIPTION => [$description?$description:''],
+    MANUFACTURER => [$manufacturer?$manufacturer:''],
+    SERIAL => [$serial?$serial:''],
 
   };
 }
@@ -257,8 +262,8 @@ sub addVideos {
   push @{$self->{h}{CONTENT}{VIDEOS}},
   {
 
-    CHIPSET => [$chipset?$chipset:"??"],
-    NAME => [$name?$name:"??"],
+    CHIPSET => [$chipset?$chipset:''],
+    NAME => [$name?$name:''],
 
   };
 }
@@ -273,9 +278,9 @@ sub addSounds {
   push @{$self->{h}{CONTENT}{SOUNDS}},
   {
 
-    DESCRIPTION => [$description?$description:"??"],
-    MANUFACTURER => [$manufacturer?$manufacturer:"??"],
-    NAME => [$name?$name:"??"],
+    DESCRIPTION => [$description?$description:''],
+    MANUFACTURER => [$manufacturer?$manufacturer:''],
+    NAME => [$name?$name:''],
 
   };
 }
@@ -297,15 +302,15 @@ sub addNetworks {
   push @{$self->{h}{CONTENT}{NETWORKS}},
   {
 
-    DESCRIPTION => [$description?$description:"??"],
-    IPADDRESS => [$ipaddress?$ipaddress:"??"],
-    IPDHCP => [$ipdhcp?$ipdhcp:"??"],
-    IPGATEWAY => [$ipgateway?$ipgateway:"??"],
-    IPMASK => [$ipmask?$ipmask:"??"],
-    IPSUBNET => [$ipsubnet?$ipsubnet:"??"],
-    MACADDR => [$macaddr?$macaddr:"??"],
-    STATUS => [$status?$status:"??"],
-    TYPE => [$type?$type:"??"],
+    DESCRIPTION => [$description?$description:''],
+    IPADDRESS => [$ipaddress?$ipaddress:''],
+    IPDHCP => [$ipdhcp?$ipdhcp:''],
+    IPGATEWAY => [$ipgateway?$ipgateway:''],
+    IPMASK => [$ipmask?$ipmask:''],
+    IPSUBNET => [$ipsubnet?$ipsubnet:''],
+    MACADDR => [$macaddr?$macaddr:''],
+    STATUS => [$status?$status:''],
+    TYPE => [$type?$type:''],
 
   };
 }
@@ -509,5 +514,4 @@ sub saveLastState {
 	(will be synchronized by GLPI!!): $!"); 
   }
 }
-
 1;
