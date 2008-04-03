@@ -24,7 +24,7 @@ use Ocsinventory::Agent::Config;
 
 use Ocsinventory::Agent::CompatibilityLayer;
 
-our $VERSION = '0.0.9';
+our $VERSION = '0.0.9.1';
 
 my $basedir = '';
 #$basedir = 'c:/cvs_ocs/ocsinventory-agent';
@@ -246,7 +246,7 @@ if (defined($params->{server}) && $params->{server}) {
   my $dir = $params->{server};
   $dir =~ s/\//_/g;
   $params->{vardir} = $params->{basevardir}."/".$dir;
-  if (defined ($params->{local})) {
+  if (defined ($params->{local}) && $params->{local}) {
       $logger->debug ("--server ignored since you also use --local");
       $params->{server} = undef;
   }
