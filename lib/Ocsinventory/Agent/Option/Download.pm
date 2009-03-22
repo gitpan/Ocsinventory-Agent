@@ -7,6 +7,11 @@
 ## code is always made freely available.
 ## Please refer to the General Public Licence http://www.gnu.org/ or Licence.txt
 ################################################################################
+# Function by hook:
+# -download_prolog_reader, download_message, download
+# -download_inventory_handler
+# -download_end_handler, begin, done, clean, finish, period, download, execute,
+#   check_signature and build_package
 package Ocsinventory::Agent::Option::Download;
 
 use strict;
@@ -228,7 +233,7 @@ sub download_prolog_reader{
 				
 				my($server_name,$server_port,$server_dir);
 				
-				if($_->{INFO_LOC}=~ /^(\w+):(\d{1,5})(.*)$/){
+				if($_->{INFO_LOC}=~ /^([^:]+):(\d{1,5})(.*)$/){
 					$server_name = $1;
 					$server_port = $2;
 					$server_dir = $3;
@@ -625,7 +630,7 @@ sub execute{
 	# 		$p->{NOTIFY_TEXT}
 	# 		$p->{NOTIFY_COUNTDOWN}
 	# 		$p->{NOTIFY_CAN_ABORT}
-	#TODO: Message broadcast vers les terminaux + eventuellement une messagebox si on detecte un environnement graphique (detection gtk/Qt, Modules necessaires..?)
+        # TODO: notification to send through DBUS to the user
 		
 		
 		eval{
@@ -811,7 +816,7 @@ sub download_message{
 	# Compress data
 	$xml = Compress::Zlib::compress( $xml );
 	
-	my $URI = "http://".$current_context->{'OCS_AGENT_SERVER_NAME'}."/ocsinventory";
+	my $URI = $current_context->{'OCS_AGENT_SERVER_NAME'};
 	
 	# Send request
 	my $request = HTTP::Request->new(POST => $URI);

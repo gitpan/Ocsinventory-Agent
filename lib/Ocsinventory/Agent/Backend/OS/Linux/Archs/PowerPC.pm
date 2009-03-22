@@ -1,11 +1,11 @@
 package Ocsinventory::Agent::Backend::OS::Linux::Archs::PowerPC;
 use strict;
-
+use Config;
 sub check { 
-  return unless -r "/proc/cpuinfo";
-  my $arch = `arch`;
-  return unless $arch =~ /^ppc/;
-  1; 
+  return unless can_read ("/proc/cpuinfo");
+  return 1 if $Config{'archname'} =~ /^ppc/;
+  return 1 if $Config{'archname'} =~ /^powerpc/;
+  0; 
 };
 
 sub run {

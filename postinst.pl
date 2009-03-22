@@ -4,49 +4,71 @@ use strict;
 
 use lib 'lib';
 
-use XML::Simple;
 use Ocsinventory::Agent::Config;
+
 
 my $old_linux_agent_dir = "/etc/ocsinventory-client";
 
 my $config;
 my @cacert;
+my $binpath;
+my $randomtime;
+my $cron_line;
+
+sub loadModules {
+    my @modules = @_;
+
+    foreach (@modules) {
+        eval "use $_;";
+        if ($@) {
+            print STDERR "Failed to load $_. Please install it and restart the postinst.pl script ( ./postinst.pl ).\n";
+            exit 1;
+
+        }
+    }
+
+}
 
 sub ask_yn {
-    my $prompt = shift;
+    my $promptUser = shift;
+    my $default = shift;
 
-    print $prompt."?\n";
+    die unless $default =~ /^(y|n)$/;
 
+    my $cpt = 5;
     while (1) {
-        print "Please enter 'y' or 'n'>\n";
-        chomp(my $line = <STDIN>);
+        my $line = prompt("$promptUser\nPlease enter 'y' or 'n'?>", $default);
         return 1 if $line =~ /^y$/;
         return if $line =~ /^n$/;
+        if ($cpt-- < 0) {
+            print STDERR "to much user input, exit...\n";
+            exit(0);
+        }
     }
 }
 
-sub prompt {
-    my ($prompt, $default, $regex, $notice) = @_;
+sub promptUser {
+    my ($promptUser, $default, $regex, $notice) = @_;
 
-    print $prompt;
-    print "($default)" if $default;
-    print "?:\n";
+    my $string = $promptUser;
+    $string .= "?>";
 
     my $line;
+    my $cpt = 5;
     while (1) {
 
-        print ">\n";
-        chomp($line = <STDIN>);
+        $line = prompt($string, $default);
 
-        if ($line =~ /^$/ and $default) {
-            print "[nfo] Using the default value ($default)\n";
-            $line = $default;
+        if ($regex && $line !~ /$regex/) {
+            print STDERR $notice."\n";
+        } else {
             last;
         }
 
-        last unless $regex && $line !~ /$regex/;
-        
-        print $notice."\n";
+        if ($cpt-- < 0) {
+            print STDERR "to much user input, exit...\n";
+            exit(0);
+        }
 
     }
 
@@ -66,20 +88,24 @@ sub pickConfigdir {
         }
     }
 
-    print "Where do you want to write the configuration file?\n";
+    print STDERR "Where do you want to write the configuration file?\n";
     foreach (0..$#choices) {
-        print " ".$_." -> ".$choices[$_]."\n";
+        print STDERR " ".$_." -> ".$choices[$_]."\n";
     }
     my $input = -1;
     my $configdir;
-    while (!($input =~ /^\d+$/ && $input >= 0 && $input <= $#choices)) {
-        print ">";
-        chomp($input = <STDIN>);
+    while (1) {
+        $input = prompt("?>");
+        if ($input =~ /^\d+$/ && $input >= 0 && $input <= $#choices) {
+            last;
+        } else {
+            print STDERR "Value must be between 0 and ".$#choices."\n";
+        }
     }
 
 
     if (! -d $choices[$input]) {
-        if (ask_yn ("Do you want to create the directory ".$choices[$input]."?")) {
+        if (ask_yn ("Do you want to create the directory ".$choices[$input]."?", 'y')) {
             if (!mkdir $choices[$input]) {
                 print "Failed to create ".$choices[$input].". Are you root?\n";
                 exit 1;
@@ -110,23 +136,38 @@ sub recMkdir {
   1;
 }
 
+sub mkFullServerUrl {
+
+    my $server = shift;
+
+    my $ret = 'http://' unless $server =~ /^http(s|):\/\//;
+    $ret .= $server;
+   
+    if ($server !~ /http(|s):\/\/\S+\/\S+/) {
+        $ret .= '/ocsinventory';
+    }
+
+    return $ret;
+
+}
+
+
 ####################################################
 ################### main ###########################
 ####################################################
 
-if (!ask_yn("Do you want to configure the agent")) {
+loadModules (qw/XML::Simple ExtUtils::MakeMaker/);
+
+if (!ask_yn("Do you want to configure the agent", 'y')) {
     exit 0;
 }
 
 
 my $configdir = pickConfigdir ("/etc/ocsinventory", "/usr/local/etc/ocsinventory", "/etc/ocsinventory-agent");
 
-if (-f $old_linux_agent_dir.'/ocsinv.conf' && ask_yn("Should the old linux_agent settings be imported?")) {
+if (-f $old_linux_agent_dir.'/ocsinv.conf' && ask_yn("Should the old linux_agent settings be imported?", 'y')) {
     my $ocsinv = XMLin($old_linux_agent_dir.'/ocsinv.conf');
-    my $server = '';
-    $server .= 'http://' unless $ocsinv->{'OCSFSERVER'} =~ /^http(s|):\/\//;
-    $server .= $ocsinv->{'OCSFSERVER'}.'/ocsinventory';
-    $config->{server} = $server;
+    $config->{server} = mkFullServerUrl($ocsinv->{'OCSFSERVER'});
 
     if (-f $old_linux_agent_dir.'/cacert.pem') {
         open CACERT, $old_linux_agent_dir.'/cacert.pem' or die "Can'i import the CA certificat: ".$!;
@@ -135,13 +176,28 @@ if (-f $old_linux_agent_dir.'/ocsinv.conf' && ask_yn("Should the old linux_agent
     }
 
     my $admcontent = '';
-    open(ADM, "<:encoding(iso-8859-1)", "$old_linux_agent_dir/ocsinv.adm")
-        or die "Can't open $old_linux_agent_dir/ocsinv.adm";
-    $admcontent .= $_ foreach (<ADM>);
-    close ADM;
-    my $admdata = XMLin($admcontent) or die;
-    foreach (@{$admdata->{ACCOUNTINFO}}) {
-        $config->{tag} = $_->{KEYVALUE} if $_->{KEYNAME} =~ /^TAG$/;
+
+
+    if (-f "$old_linux_agent_dir/ocsinv.adm") {
+        if (!open(ADM, "<:encoding(iso-8859-1)", "$old_linux_agent_dir/ocsinv.adm")) {
+            warn "Can't open $old_linux_agent_dir/ocsinv.adm";
+        } else {
+            $admcontent .= $_ foreach (<ADM>);
+            close ADM;
+            my $admdata = XMLin($admcontent) or die;
+            if (ref ($admdata->{ACCOUNTINFO}) eq 'ARRAY') {
+                foreach (@{$admdata->{ACCOUNTINFO}}) {
+                    $config->{tag} = $_->{KEYVALUE} if $_->{KEYNAME} =~ /^TAG$/;
+                }
+            } elsif (
+                exists($admdata->{ACCOUNTINFO}->{KEYNAME}) &&
+                exists($admdata->{ACCOUNTINFO}->{KEYVALUE}) &&
+                $admdata->{ACCOUNTINFO}->{KEYNAME} eq 'TAG'
+            ) {
+                print $admdata->{ACCOUNTINFO}->{KEYVALUE}."\n";
+                $config->{tag} = $admdata->{ACCOUNTINFO}->{KEYVALUE};
+            }
+        }
     }
 }
 
@@ -166,7 +222,8 @@ if (-f $configdir."/ocsinventory-agent.cfg") {
 
 print "[info] The config file will be written in /etc/ocsinventory/ocsinventory-agent.cfg,\n";
 
-$config->{server} = prompt('What is the address of your ocs server', exists ($config->{server})?$config->{server}:'ocsinventory-ng');
+my $tmp = promptUser('What is the address of your ocs server', exists ($config->{server})?$config->{server}:'ocsinventory-ng');
+$config->{server} = mkFullServerUrl($tmp);
 if (!$config->{server}) {
     print "Server is empty. Leaving...\n";
     exit 1;
@@ -178,40 +235,59 @@ if ($config->{server} =~ /^http(|s):\/\//) {
     $uri = "http://".$config->{server}."/ocsinventory"
 }
 
-if (ask_yn ("Do you need credential for the server? (You probably don't)")) {
-    $config->{user} = prompt("user".(exists($config->{user})?"(".$config->{user}.")":'' ));
-    $config->{password} = prompt("password");
+if (ask_yn ("Do you need credential for the server? (You probably don't)", 'n')) {
+    $config->{user} = promptUser("user", $config->{user});
+    $config->{password} = promptUser("password");
     print "[info] The realm can be found in the login popup of your Internet browser.\n[info] In general, it's something like 'Restricted Area'.\n";
-    $config->{realm} = prompt("realm");
+    $config->{realm} = promptUser("realm");
 } else {
     delete ($config->{user});
     delete ($config->{password});
     delete ($config->{realm});
 }
 
-if (ask_yn('Do you want to apply an administrative tag on this machine')) {
+if (ask_yn('Do you want to apply an administrative tag on this machine', 'y')) {
 
-    $config->{tag} = prompt("tag".(exists($config->{tag})?"(".$config->{tag}.")":'' ));
+    $config->{tag} = promptUser("tag", $config->{tag});
 } else {
     delete($config->{tag});
 }
 
-my $binpath;
-foreach (qw(/usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt/ocsinventory-agent/bin) ) {
-    $binpath = $_.'/ocsinventory-agent';
-    last if -x $binpath;
+
+chomp($binpath = `which ocsinventory-agent 2>/dev/null`);
+if (! -x $binpath) {
+	# Packaged version with perl and agent ?
+	$binpath = $^X;
+	$binpath =~ s/perl/ocsinventory-agent/;
 }
 
 if (! -x $binpath) {
-    print "sorry, ocsinventory-agent is not installed in a standard directory\n";
+    print "sorry, can't find ocsinventory-agent in \$PATH\n";
     exit 1;
 } else {
     print "ocsinventory agent presents: $binpath\n";
 }
 
-if (-d "/etc/cron.d") {
-    if (ask_yn("Do yo want to install the cron task in /etc/cron.d")) {
-        my $randomtime = int(rand(60)).' '.int(rand(24));
+
+$randomtime = int(rand(60)).' '.int(rand(24));
+$cron_line = $randomtime." * * * root $binpath --lazy > /dev/null 2>&1\n";
+
+if ($^O =~ /solaris/) {
+    if (ask_yn("Do yo want to install the cron task in current user crontab ?", 'y')) {
+	my $crontab = `crontab -l`;
+
+	# Let's suppress Linux cron/anacron user column
+	$cron_line =~ s/ root /  /;
+	$crontab .= $cron_line;
+
+	open CRONP, "| crontab" || die "Can't run crontab: $!";
+	print CRONP $crontab;
+	close(CRONP);
+
+    }
+}
+elsif (-d "/etc/cron.d") {
+    if (ask_yn("Do yo want to install the cron task in /etc/cron.d", 'y')) {
 
         open DEST, '>/etc/cron.d/ocsinventory-agent' or die $!;
         print  DEST $randomtime." * * * root $binpath --lazy > /dev/null 2>&1\n";
@@ -219,11 +295,17 @@ if (-d "/etc/cron.d") {
     }
 }
 
-
-$config->{basevardir} = prompt('Where do you want the agent to store its files?', exists ($config->{basevardir})?$config->{basevardir}:'/var/lib/ocsinventory-agent', '/^\/\w+/', 'The location must begin with /');
+my $default_vardir;
+if ($^O =~ /solaris/) {
+	$default_vardir = '/var/opt/ocsinventory-agent';
+} else { 
+	$default_vardir = '/var/lib/ocsinventory-agent'
+}
+	
+$config->{basevardir} = promptUser('Where do you want the agent to store its files? (You probably don\'t need to change it)', exists ($config->{basevardir})?$config->{basevardir}:$default_vardir, '^\/\w+', 'The location must begin with /');
 
 if (!-d $config->{basevardir}) {
-    if (ask_yn ("Do you want to create the ".$config->{basevardir}." directory?\n")) {
+    if (ask_yn ("Do you want to create the ".$config->{basevardir}." directory?\n", 'y')) {
         mkdir $config->{basevardir} or die $!;
     } else {
         print "Please create the ".$config->{basevardir}." directory\n";
@@ -238,11 +320,12 @@ chmod 0600, "$configdir/ocsinventory-agent.cfg";
 
 print "New settings written! Thank you for using OCS Inventory\n";
 
-if (ask_yn ("Should I remove the old linux_agent")) {
+if (ask_yn ("Should I remove the old linux_agent", 'n')) {
     foreach (qw#
         /etc/ocsinventory-client
         /etc/logtotate.d/ocsinventor-client
         /usr/sbin/ocsinventory-client.pl
+        /etc/cron.d/ocsinventory-client
         /bin/ocsinv
         #) {
         print $_."\n";
@@ -266,7 +349,7 @@ if (@cacert) { # we need to migrate the certificat
     print "Certificat copied in ".$vardir."/cacert.pem\n";
 }
 
-my $download_enable = ask_yn("Do you want to use OCS-Inventory software deployment feature?");
+my $download_enable = ask_yn("Do you want to use OCS-Inventory software deployment feature?", 'y');
 
 open MODULE, ">$configdir/modules.conf" or die "Can't write modules.conf in $configdir: ".$!;
 print MODULE "# this list of module will be load by the at run time\n";
@@ -278,20 +361,20 @@ print MODULE "# created for the previous linux_agent.\n";
 print MODULE "# The new unified_agent have its own extension system that allow\n";
 print MODULE "# user to add new information easily.\n";
 print MODULE "\n";
-print MODULE ($download_enable?'#':'');
+print MODULE ($download_enable?'':'#');
 print MODULE "use Ocsinventory::Agent::Option::Download;\n";
 print MODULE "\n";
-print MODULE "# DO NO REMOVE the 1;\n";
+print MODULE "# DO NOT REMOVE THE 1;\n";
 print MODULE "1;\n";
 close MODULE;
 
 
-if (ask_yn("Do you want to send an inventory of this machine?")) {
-    #system("$binpath --force");
-    system("./ocsinventory-agent --force");
+if (ask_yn("Do you want to send an inventory of this machine?", 'y')) {
+    system("$binpath --force");
     if (($? >> 8)==0) {
         print "   -> Success!\n";
     } else {
         print "   -> Failed!\n";
+	print "You may want to launch the agent with the --verbose or --debug flag.\n";
     }
 }

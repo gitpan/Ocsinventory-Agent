@@ -4,14 +4,19 @@ use inc::Module::Install;
 # Hack to be able to run a post install script
 sub MY::postamble
 {
-    return '
+
+	my $re;
+
+	$re = '
 install :: all pure_install doc_install
-	$(NOECHO) $(NOOP)
-	[ ! -f run-postinst ] || perl postinst.pl
-';
+	$(NOECHO) $(NOOP)';
+
+	$re .= "\n\t[ ! -f run-postinst ] || $^X postinst.pl\n";
+
+    return $re;
 }
 
-use Config qw(config_re);
+use Config;
 
 name 'Ocsinventory-Agent';
 include 'Module::AutoInstall';
@@ -21,22 +26,25 @@ version_from 'ocsinventory-agent';
 perl_version '5.006';
 requires 'Digest::MD5' => undef;
 requires 'XML::Simple' => undef;
-requires 'Net::IP' => undef;
 requires 'LWP' => undef;
 requires 'File::Temp' => undef;
+recommends 'Net::IP' => undef;
 recommends 'Compress::Zlib';
 recommends 'Proc::Daemon' => undef;
+recommends 'Proc::PID::File' => undef;
 
 install_script  'ocsinventory-agent';
-bundle 'Compress::Zlib' => undef;
-bundle 'Digest::MD5' => undef;
-bundle 'File::Temp' => undef;
-bundle 'Net::IP' => undef;
-bundle 'XML::Simple' => undef;
-bundle 'XML::SAX' => undef;
-bundle 'XML::NamespaceSupport' => undef;
-bundle 'URI' => undef;
-bundle 'LWP' => undef;
+
+
+# We want a release bundled with the needed dependency to be able to
+# prepare a standealone binay with PAR::Packer 
+if ($ENV{OCS_BUNDLE_RELEASE}) {
+  foreach my $module (qw/Archive::Zip HTML::Parser LWP URI XML::NamespaceSupport Net::IP HTML::Tagset Proc::Daemon Module::ScanDeps PAR::Packer AutoLoader PAR PAR::Dist File::Remove YAML::Tiny Getopt::ArgvFile ExtUtils::Install ExtUtils::ParseXS XML::SAX XML::Simple/) {
+    bundle $module;
+    requires $module;
+  } 
+}
+
 
 
 if (defined ($ENV{PERL_AUTOINSTALL}) || defined ($ENV{PERL_AUTOINSTALL})) {
@@ -47,16 +55,8 @@ if (defined ($ENV{PERL_AUTOINSTALL}) || defined ($ENV{PERL_AUTOINSTALL})) {
 }
 
 
-
-sub wait {
-    return if (defined ($ENV{PERL_AUTOINSTALL}) || defined ($ENV{PERL_AUTOINSTALL}));
-    <STDIN>;
-}
-
-
 if (!can_use('Compress::Zlib')) {
     print "Please install Compress::Zlib if you use an OCS server prior 1.02.\n"; 
-    wait();
 }
 
 if (!can_use('Crypt::SSLeay')) {
@@ -68,17 +68,35 @@ if (!can_run('ipdiscover') && !can_run('nmap')) {
     print "or ipdiscover " if $^O =~ /^linux$/i;
     print "if you want to use the network ".
     "discover feature.\n";
-    wait();
 }
 
-my @t = config_re('archname');
-if ($^O =~ /(linux|bsd)/i && $t[0] =~ /(i[3456x]86)/) {
+
+my $archname;
+eval { # config_re is not avalaible on Perl 5.6
+    my @t = Config::config_re('archname'); 
+    $archname = $t[0];
+};
+if ($^O =~ /(linux|bsd)/i && (!$archname ||$archname =~ /(i[3456x]86|x86_64|amd64)/i)) {
     foreach (qw/dmidecode lspci/) {
-        print "$_ is needed if you want complet inventory.\n" unless can_run($_);
-        wait();
+        if (!can_run($_)) {
+            print "\n";
+            print "[WARNING] $_ is needed if you want a complet inventory on x86 and AMD64/x86_64.\n";
+            print "\n";
+        }
     }
 }
 
+if ($^O =~ /^darwin$/ && !can_use('Mac::SysProfile')) {
+    print "\n";
+    print "[WARNING] Mac::SysProfile is needed on MacOS to detect most of the device information.\n";
+    print "\n";
+    requires 'Mac::SysProfile' => undef;
+}
+
+# memconf is needed by Solaris backend module
+if ($^O =~ /^solaris$/i) {
+    install_script  'memconf';
+}
 #for i in inc/BUNDLES/* ; do rm -rf `basename $i` ;done`
 #auto_install;
 WriteAll;

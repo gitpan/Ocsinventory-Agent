@@ -9,11 +9,7 @@ package Ocsinventory::Agent::Backend::OS::Solaris::Drives;
 
 
 use strict;
-sub check {
-  `df 2>&1`;
-  return if ($? >> 8)!=0;
-  1;
-}
+sub check { can_run ("df") }
 
 sub run {
   my $params = shift;
@@ -28,6 +24,13 @@ sub run {
 #Looking for mount points and disk space 
   for(`df -k`){
     if (/^Filesystem\s*/){next};
+    # on Solaris 10 /devices is an extra mount which we like to exclude
+    if (/^\/devices/){next};
+    # on Solaris 10 /platform/.../libc_psr_hwcap1.so.1 is an extra mount which we like to exclude
+    if (/^\/platform/){next};
+    # exclude cdrom mount point
+    if (/^\/.*\/cdrom/){next};
+
     if (!(/^\/.*/) && !(/^swap.*/)){next};
 
     if(/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\n/){	
@@ -38,6 +41,7 @@ sub run {
 
       if($filesystem =~ /^\/dev\/\S*/){	 
 	chomp($type=`fstyp $filesystem`);
+        $type = '' if $type =~ /cannot stat/;
       }
       else {$type="";}	 
 #print "FILESYS ".$filesystem." FILETYP ".$type." TOTAL ".$total." FREE ".$free." VOLUMN ".$volumn."\n";

@@ -1,11 +1,130 @@
 Revision history for Ocsinventory::Agent
 
+1.0    Sun, 22 Mar 2009 20:14:26 +0100
+       * Hide warning messages when tw_cli or hpacucli are not present on CentOS
+       * Avoid unnecessary about missing 'http://' in local mode
+       * Ipmi.pm: use can_run do detect ipmitool
+       * LSB.pm: properly use can_run
+       * Avoid a warning in CompatibilityLayer.pm in local mode
+       * Improve the README file
+       * Avoid a warning at runtime if rpm is not correctly installed
+       * BSD: Detect AMD64 arch (David DURIEUX)
+       * HP.pm: force detection even if slot 1 is 0 (Remi COLLET)
+       * HP.pm minor clean up + indentation
+       * HP.pm send the $model as NAME to avoid NAME == 'unknown' (Remi COLLET)
+       * New backend module ServeRaid for IBM ServeRAID card (Remi COLLET)
+       * Linux::Storages, fix the hdparm call (Remi COLLET)
+       * OS::Generic::Dmidecode::Bios, fix for RHEL2 dmidecode (Remi COLLET)
+       * launch backend modules with a 30sec timeout
+       * post-inst.pl: use prompt() from ExtUtils::MakeMaker to avoid
+         unexpected error with cpan
+       * avoid the "No LSB modules are available." warning message
+       * Backend: --debug print a warning when arun() function is not found
+       * Fix the Debian/Ubuntu detection for non lsb system
+       * postinst.pl also drop /etc/cron.d/ocsinventory-client is the user
+         want to drop the old linux_agent
+       * Backend::OS::Solaris::Memory: use the Logger instead of "print"
+       * Solaris: Drop unwanted spaces around OSVERSION and STORAGES/DESCRIPTION
+       * Solaris: Avoid warning is the user can't use fstyp 
+       * MANIFEST.SKIP: ignore .git/ and .gitignore
+       * add a workaround for http://rt.cpan.org/Ticket/Display.html?id=38067 
+       * build-perl-tree.sh use cpanp and perl 5.10 now
+       * Backend.pm: do a eval around require File::Find
+       * Add a workaround to find the backend modules for PAR::Packer
+       * Backend.pm: internal change, now do eval 'use $pmodule' instead of require
+       * fix serialnum detection in Lsilogic.pm and Adaptec.pm (Edouard GAMIN)
+       * Makefile.PL: drop wait(), not used
+       * Makefile.PL: fix a syntax error
+       * add tools/makedist.sh to document the workaround used to avoid
+         http://rt.cpan.org/Public/Bug/Display.html?id=43060
+       * Fix --logfile=/somewhere.log, see
+         http://forums.ocsinventory-ng.org/viewtopic.php?id=3092
+       * tools/build-perl-tree.sh, add a new script
+       * Don't print ugly error if next_timefile can't be saved
+       * OS::Linux::Domains, improve the way it deals with multiple
+         domaine entries (Remi COLLET)
+       * AIX: Record the last memory Slot (Wilfried BRUNKEN)
+         http://sourceforge.net/tracker/?func=detail&atid=487492&aid=2350694&group_id=58373
+       * Bump 0.0.10 to 1.0 because it's the first release to be officially part
+         of the OCSInventory distribution
+
+0.0.10beta2    Wed, 24 Sep 2008 23:41:21 +0200
+       * README: add a not about the $PATH varible on Solaris.
+       * Added extra section support for backends (Pascal DANEK)
+       * Fix the way submodules are disabled with $runMeIfTheseChecksFailed
+       * Linux: Use lsb_release if presents to detect the OS, this will fix
+         the Ubuntu detection
+       * Hide a Perl warning if the agent is run by the user want the last_state
+         file is missing
+       * Add Ipmi backend module (Jean PARPAILLON)
+       * Drop the control characters from the inventory XML
+         https://sourceforge.net/tracker/index.php?func=detail&aid=2100606&group_id=58373&atid=487492
+       * Apply a little change in standalone.sh that may fix the ParserDetails.ini problem,
+         thanks tharoun
+
+0.0.10beta1    Thu, 04 Sep 2008 18:16:49 +0200
+       * Fix a "ocs server name" => URI side effect (Pascal DANEK)
+       * Download::Store: used absolute path to "cp" on STORE action (Pascal DANEK)
+       * Download::Store: set -dpR flags to "cp" (Pascal DANEK)
+       * Solaris: Replaced hostid in serialnumber by real serialnumber (Nicolas DORFSMAN)
+                  (SUNWsneep becomes mandatory on sparc)
+       * Solaris: Return only one IP address (trying to guess which one corresponds to hostname) (Nicolas DORFSMAN)
+       * Solaris: return disks SERIALNUMBER and FIRMWARE as XML fields (Nicolas DORFSMAN)
+       * Redirection and stderr issue on Solaris (Nicolas DORFSMAN)
+         - Removed close of stderr fd
+         - Modified lspci and screen check() to avoid pollution of stdout/stderr
+       * fix the previous changelog entry, the 0.0.9.1 fix had been done by Nicolas DORFSMAN
+       * postinst.pl checks for MANIFEST present
+       * improve the backend module detection by also scanning the symlinked directory
+       * add the --devlib flag to load ./lib only if wanted and remove '.' from the directory to scan
+         with File::Find.
+       * import the can_run, can_load and can_read functions in the Backend modules
+       * the backend module can have no check function, in this case OCS assume it's ok
+       * apply a patch by Etienne GUILLAUMONT to fix CPU detection on AIX 4 
+       * standalone.sh checks PAR::Packer presence now
+       * only inventory installed .deb
+       * postinst.pl: accept another vardir if the first one was invalide
+         https://sourceforge.net/tracker/?func=detail&atid=487492&aid=1961771&group_id=58373
+       * postinst.pl Download.pm correctly actived in modules.conf is the user needs it
+       * add MacOSX support thanks to Wes YOUNG (Wes YOUNG)
+         - Added tools/darwin/ support scripts/code for OS X enterprise deployment
+       * add the follow_skip==2 flag to File::Find in Backend.pm so it doesn't detect the same
+         file two time
+       * import of backend module for RAID controler on Linux (3ware, Adaptec, HP and Lsilogic)
+         (Edouard GAMIN)
+       * remove a warning in Debug mod, if a backend module has no run() function
+       * don't crash in Daemon mode if the server is unreachable (Wes YOUNG)
+       * Net::IP is just (strongly) suggested now
+       * fix --basevardir so it really accepts a parameter, thanks Gubluts from the forum who
+         pointed out the bug
+       * postinst.pl use which to find ocsinventory-agent location
+       * Makefile.PL, Perl 5.6 doesn't have Config::config_re, I call it from an eval now
+       * Added --delaytime option as commandline / .cfg file adjustable (Wes YOUNG)
+       * standalone.sh, don't use grep -v since it's not POSIX
+       * doesn't die if Storable.pm is missing like with perl 5.6
+       * avoid a warning with gzip -h on AIX if Compress::Zlib is missing
+       * README: depends on Perl 5.8
+       * README: On solaris the Makefile needs gmake
+       * README: Add a note about crontab and PATH
+       * Linux: redirect hdparm error to /dev/null
+       * postinst.pl yes/no questions have a default value now
+       * postinst.pl fix a bug in the import of the old ocsinv.adm
+         https://sourceforge.net/tracker/index.php?func=detail&aid=1991668&group_id=58373&atid=487492
+       * postinst.pl doesn't create two vardir directories anymore
+       * do not print a wrning is --nosoftware is used. Thanks Knarfling and Remi who pointed the issue
+         out.
+         http://forums.ocsinventory-ng.org/viewtopic.php?pid=12569
+       * fix the POD documentation, some mistakes were detected by Perl 5.10's perldoc.
+       * the agent doesn't crash anymore if ocsinv.adm or ocsinv.conf is corrupted
+       * Makefile.pl: install memconf on Solaris
+       * Solaris: apply patches to use memconf for CPU, Drives and Memory (Christoph HALMES)
+
 0.0.9.2 04/18/2008 Bug fix
        * Add /ocsinventory in the server path if the user enter just the hostname
          https://sourceforge.net/tracker/?func=detail&atid=487492&aid=1945865&group_id=58373
 
 0.0.9.1 04/03/2008 Bug fix
-       * fix a error in the previous release that was forcing the local mode (Jean-Jacques MICHEL)
+       * fix a error in the previous release that was forcing the local mode (Nicolas DORFSMAN)
          https://sourceforge.net/tracker/?func=detail&atid=487492&aid=1945863&group_id=58373
 
 0.0.9 04/01/2008 April Fool release!

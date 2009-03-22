@@ -1,10 +1,10 @@
 package Ocsinventory::Agent::Backend::OS::AIX::Networks;
 
-use Net::IP qw(:PROC);;
 use strict;
 
-sub check {1}
-
+sub check {
+  can_load("Net::IP qw(:PROC)");
+}
 
 sub run {
   my $params = shift;

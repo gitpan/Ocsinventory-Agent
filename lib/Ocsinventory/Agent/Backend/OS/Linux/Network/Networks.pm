@@ -1,14 +1,10 @@
 package Ocsinventory::Agent::Backend::OS::Linux::Network::Networks;
 
-use Net::IP qw(:PROC);;
-
 use strict;
+use warnings;
 
 sub check {
-  my @ifconfig = `ifconfig 2>/dev/null`;
-  return unless @ifconfig;
-  my @route = `route -n 2>/dev/null`;
-  return unless @route;
+  return unless can_run("ifconfig") && can_run("route") && can_load("Net::IP qw(:PROC)");
 
   1;
 }
@@ -59,6 +55,7 @@ sub _ipdhcp {
 sub run {
   my $params = shift;
   my $inventory = $params->{inventory};
+  my $logger = $params->{logger};
 
   my $description;
   my $ipaddress;
@@ -69,9 +66,7 @@ sub run {
   my $status;
   my $type;
 
-
   my %gateway;
-  
   foreach (`route -n`) {
     if (/^(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)/) {
       $gateway{$1} = $2;
@@ -82,8 +77,8 @@ sub run {
     if (/^$/ && $description !~ /^(lo|vmnet\d+|sit\d+)$/) {
       # end of interface section 
       # I write the entry
-      my $binip = &ip_iptobin ($ipaddress ,4);
-      my $binmask = &ip_iptobin ($ipmask ,4);
+      my $binip = ip_iptobin ($ipaddress ,4);
+      my $binmask = ip_iptobin ($ipmask ,4);
       my $binsubnet = $binip & $binmask;
       $ipsubnet = ip_bintoip($binsubnet,4);
 
@@ -109,6 +104,7 @@ sub run {
 	});
 
       $description = $ipaddress = $ipgateway = $macaddr = $status =  $type = undef;
+      next;
     }
 
       $description = $1 if /^(\S+)/; # Interface name
@@ -121,5 +117,4 @@ sub run {
 
   }
 }
-
 1;

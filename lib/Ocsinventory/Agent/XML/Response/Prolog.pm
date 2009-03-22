@@ -7,7 +7,7 @@ our @ISA = ('Ocsinventory::Agent::XML::Response');
 
 sub new {
     my ($class, @params) = @_;
-    
+
     my $this = $class->SUPER::new(@params);
 
     bless ($this, $class);
@@ -52,16 +52,22 @@ sub updatePrologFreq {
              $self->{accountconfig}->set("PROLOG_FREQ", $parsedContent->{PROLOG_FREQ});
         }
         else{
-            $logger->info("PROLOG_FREQ has not changed since last process");
-        }  
+            $logger->debug("PROLOG_FREQ has not changed since last process");
+        }
     }
 }
-    
+
 
 sub saveNextTime {
     my ($self, $args) = @_;
 
     my $logger = $self->{logger};
+
+    if (!$self->{params}->{next_timefile}) {
+        $logger->debug("no next_timefile to save!");
+	return;
+    }
+
     my $parsedContent = $self->getParsedContent();
 
     if (!open NEXT_TIME, ">".$self->{params}->{next_timefile}) {
@@ -71,17 +77,17 @@ sub saveNextTime {
     close NEXT_TIME or warn;
 
     my $serverdelay = $self->{accountconfig}->get('PROLOG_FREQ');
-    
+
     my $time;
     if( $self->{prologFreqChanged} ){
-        $logger->info("Compute file_nexttime with random value");
+        $logger->debug("Compute next_time file with random value");
         $time  = time + int rand(($serverdelay?$serverdelay:$self->{params}->{delaytime})*3600);
     }
     else{
         $time = time + ($serverdelay?$serverdelay:$self->{params}->{delaytime})*3600;
     }
     utime $time,$time,$self->{params}->{next_timefile};
-    
+
     if ($self->{params}->{cron}) {
         $logger->info ("Next inventory after ".localtime($time));
     }

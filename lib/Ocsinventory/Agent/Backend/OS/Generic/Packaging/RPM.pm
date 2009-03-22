@@ -4,6 +4,9 @@ use strict;
 use warnings;
 
 sub check {
+  return unless can_run("rpm");
+
+  # Some time rpm is a wrapper or an alias for another
   `rpm --version 2>&1`;
   return if ($? >> 8)!=0;
   1;
@@ -15,7 +18,7 @@ sub run {
 
   my @list;
   my $buff;
-  foreach (`rpm -qa --queryformat "%{NAME}.%{ARCH} %{VERSION}-%{RELEASE} %{SUMMARY}\n--\n"`) {
+  foreach (`rpm -qa --queryformat "%{NAME}.%{ARCH} %{VERSION}-%{RELEASE} %{SUMMARY}\n--\n" 2>/dev/null`) {
     if (! /^--/) {
       chomp;
       $buff .= $_;

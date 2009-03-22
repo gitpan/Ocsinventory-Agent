@@ -1,9 +1,9 @@
 package Ocsinventory::Agent::Backend;
 
 use strict;
+no strict 'refs';
 use warnings;
 
-use Storable;
 use ExtUtils::Installed;
 
 sub new {
@@ -20,6 +20,32 @@ sub new {
 
   $self->{modules} = {};
 
+  $self->{backendSharedFuncs} = {
+
+    can_run => sub {
+      my $binary = shift;
+      chomp(my $binpath=`which $binary 2>/dev/null`);
+      return unless -x $binpath;
+      1 
+    },
+    can_load => sub {
+      my $module = shift;
+
+      my $calling_namespace = caller(0);
+      eval "package $calling_namespace; use $module;";
+#      print STDERR "$module not loaded in $calling_namespace! $!: $@\n" if $@;
+      return if $@;
+#      print STDERR "$module loaded in $calling_namespace!\n";
+      1;
+    },
+    can_read => sub {
+      my $file = shift;
+      return unless -r $file; 
+      1; 
+    }
+  };
+
+
   bless $self;
 
 }
@@ -28,84 +54,104 @@ sub initModList {
   my $self = shift;
 
   my $logger = $self->{logger};
+  my $params = $self->{params};
 
-  my ($inst) = ExtUtils::Installed->new();
-  my @installed_mod;
+  my @dirToScan;
+  my @installed_mods;
+  my @installed_files;
 
-  eval {@installed_mod =
-    $inst->files('Ocsinventory')};
+  # This is a workaround for PAR::Packer. Since it resets @INC
+  # I can't find the backend modules to load dynamically. So
+  # I prepare a list and include it.
+  eval "use Ocsinventory::Agent::Backend::ModuleToLoad;";
+  if (!$@) {
+    $logger->debug("use Ocsinventory::Agent::Backend::ModuleToLoad to get the modules ".
+      "to load. This should not append unless you use the standalone agent built with ".
+      "PAR::Packer (pp)"); 
+    push @installed_mods, @Ocsinventory::Agent::Backend::ModuleToLoad::list;
+  }
 
-# ExtUtils::Installed is nice it needs properly installed package with
-# .packlist
-# This is a workaround for invalide installations...
-  eval {require File::Find};
-  if ($@) {
-    $logger->debug("Failed to load File::Find");
+  if ($params->{devlib}) {
+  # devlib enable, I only search for backend module in ./lib
+    push (@dirToScan, './lib');
   } else {
+    my ($inst) = ExtUtils::Installed->new();
+
+    eval {@installed_files =
+      $inst->files('Ocsinventory')};
+
+# ExtUtils::Installed is nice but it needs properly installed package with
+# .packlist
+# This is a workaround for 'invalide' installations...
+    foreach (@INC) {
+      next if ! -d || (-l && -d readlink) || /^(\.|lib)$/;
+      push @dirToScan, $_;
+    }
+  }
+  if (@dirToScan) {
+    eval {require File::Find};
+    if ($@) {
+      $logger->debug("Failed to load File::Find");
+    } else {
 # here I need to use $d to avoid a bug with AIX 5.2's perl 5.8.0. It
 # changes the @INC content if i use $_ directly
 # thanks to @rgs on irc.perl.org
-    foreach my $d (@INC) {
-      next unless -d $d;
-      File::Find::find( sub {
-	  push @installed_mod, $File::Find::name if $File::Find::name =~ /Ocsinventory\/Agent\/Backend\/.*\.pm$/;
-	  }
-	  , $d);
+      File::Find::find(
+        {
+          wanted => sub {
+            push @installed_files, $File::Find::name if $File::Find::name =~ /Ocsinventory\/Agent\/Backend\/.*\.pm$/;
+          },
+          follow => 1,
+          follow_skip => 2
+        }
+        , @dirToScan);
     }
   }
 
-# Find installed modules
-  foreach my $file (@installed_mod) {
-    my @runAfter;
-    my @runMeIfTheseChecksFailed;
-#    my @replace;
-    my $enable = 1;
-
+  foreach my $file (@installed_files) {
     my $t = $file;
     next unless $t =~ s!.*?(Ocsinventory/Agent/Backend/)(.*?)\.pm$!$1$2!;
     my $m = join ('::', split /\//, $t);
+    push @installed_mods, $m;
+  }
+
+  if (!@installed_mods) {
+    $logger->info("ZERO backend module found! Is Ocsinventory-Agent ".
+    "correctly installed? Use the --devlib flag if you want to run the agent ".
+    "directly from the source directory.")
+  }
+
+  foreach my $m (@installed_mods) {
+    my @runAfter;
+    my @runMeIfTheseChecksFailed;
+    my $enable = 1;
 
     if (exists ($self->{modules}->{$m}->{name})) {
       $logger->debug($m." already loaded.");
       next;
     }
     
-    eval {require $file}; # I do require directly on the file to avoid issues
-    # with AIX perl 5.8.0
+    eval "use $m;";
     if ($@) {
       $logger->debug ("Failed to load $m: $@");
       $enable = 0;
     }
 
-# Import of module's functions and values
-    local *Ocsinventory::Agent::Backend::runAfter = $m."::runAfter"; 
-    local *Ocsinventory::Agent::Backend::runMeIfTheseChecksFailed = $m."::runMeIfTheseChecksFailed"; 
-#    local *Ocsinventory::Agent::Backend::replace = $m."::replace"; 
-    local *Ocsinventory::Agent::Backend::check = $m."::check";
-    local *Ocsinventory::Agent::Backend::run = $m."::run";
-
-    foreach (@{$Ocsinventory::Agent::Backend::runAfter}) {
-      push @runAfter, \%{$self->{modules}->{$_}};
+    my $package = $m."::";
+    # Load in the module the backendSharedFuncs
+    foreach my $func (keys %{$self->{backendSharedFuncs}}) {
+      $package->{$func} = $self->{backendSharedFuncs}->{$func};
     }
-    foreach (@{$Ocsinventory::Agent::Backend::runMeIfTheseChecksFailed}) {
-      push @runMeIfTheseChecksFailed, \%{$self->{modules}->{$_}};
-    }
-
-# TODO, 
-# no strict 'refs';
-# print Dumper(\@{"Ocsinventory::Agent::Option::Download::EXPORT"});
-# to see avalaible func
-
 
     $self->{modules}->{$m}->{name} = $m;
     $self->{modules}->{$m}->{done} = 0;
     $self->{modules}->{$m}->{inUse} = 0;
     $self->{modules}->{$m}->{enable} = $enable;
-    $self->{modules}->{$m}->{checkFunc} = \&check;
-    $self->{modules}->{$m}->{runAfter} = \@runAfter;
-    $self->{modules}->{$m}->{runMeIfTheseChecksFailed} = \@runMeIfTheseChecksFailed;
+    $self->{modules}->{$m}->{checkFunc} = $package->{"check"};
+    $self->{modules}->{$m}->{runAfter} = $package->{'runAfter'};
+    $self->{modules}->{$m}->{runMeIfTheseChecksFailed} = $package->{'runMeIfTheseChecksFailed'};
 #    $self->{modules}->{$m}->{replace} = \@replace;
-    $self->{modules}->{$m}->{runFunc} = \&run;
+    $self->{modules}->{$m}->{runFunc} = $package->{'run'};
     $self->{modules}->{$m}->{mem} = {};
 # Load the Storable object is existing or return undef
     $self->{modules}->{$m}->{storage} = $self->retrieveStorage($m);
@@ -114,9 +160,13 @@ sub initModList {
 
 # the sort is just for the presentation 
   foreach my $m (sort keys %{$self->{modules}}) {
+    next unless $self->{modules}->{$m}->{checkFunc};
 # find modules to disable and their submodules
     if($self->{modules}->{$m}->{enable} &&
-    !&{$self->{modules}->{$m}->{checkFunc}}({
+    !$self->runWithTimeout(
+        $m,
+        $self->{modules}->{$m}->{checkFunc},
+        {
             accountconfig => $self->{accountconfig},
             accountinfo => $self->{accountinfo},
             inventory => $self->{inventory},
@@ -146,12 +196,18 @@ sub initModList {
     }
   }
 
-
   # Remove the runMeIfTheseChecksFailed if needed
   foreach my $m (sort keys %{$self->{modules}}) {
     next unless	$self->{modules}->{$m}->{enable};
-    foreach (@{$self->{modules}->{$m}->{runMeIfTheseChecksFailed}}) {
-      $self->{modules}->{$m}->{enable} = 0 if $_->{enable};
+    next unless	$self->{modules}->{$m}->{runMeIfTheseChecksFailed};
+    foreach my $condmod (@{${$self->{modules}->{$m}->{runMeIfTheseChecksFailed}}}) {
+       if ($self->{modules}->{$condmod}->{enable}) {
+         foreach (keys %{$self->{modules}}) {
+           next unless /^$m($|::)/ && $self->{modules}->{$_}->{enable};
+           $self->{modules}->{$_}->{enable} = 0;
+           $logger->debug ("$_ disabled because of a 'runMeIfTheseChecksFailed' in '$m'\n");
+         }
+      }
     }
   }
 }
@@ -189,20 +245,26 @@ sub runMod {
       });
   }
 
-  $logger->debug ("Running $m"); 
+  $logger->debug ("Running $m");
 
-  eval {
-  &{$self->{modules}->{$m}->{runFunc}}({
-      accountconfig => $self->{accountconfig},
-      accountinfo => $self->{accountinfo},
-      inventory => $inventory,
-      logger => $logger,
-      params => $self->{params},
-      prologresp => $self->{prologresp},
-      mem => $self->{modules}->{$m}->{mem},
-      storage => $self->{modules}->{$m}->{storage},
-      });
-  };
+  if ($self->{modules}->{$m}->{runFunc}) {
+      $self->runWithTimeout(
+          $m,
+          $self->{modules}->{$m}->{runFunc},
+          {
+              accountconfig => $self->{accountconfig},
+              accountinfo => $self->{accountinfo},
+              inventory => $inventory,
+              logger => $logger,
+              params => $self->{params},
+              prologresp => $self->{prologresp},
+              mem => $self->{modules}->{$m}->{mem},
+              storage => $self->{modules}->{$m}->{storage},
+          }
+      );
+  } else {
+      $logger->debug("$m has no run() function -> ignored");
+  }
   $self->{modules}->{$m}->{done} = 1;
   $self->{modules}->{$m}->{inUse} = 0; # unlock the module
   $self->saveStorage($m, $self->{modules}->{$m}->{storage});
@@ -224,7 +286,7 @@ sub feedInventory {
 
   my $begin = time();
   foreach my $m (sort keys %{$self->{modules}}) {
-    die ">$m" unless $m;# Houston!!!
+    die ">$m Houston!!!" unless $m;
       $self->runMod ({
 	  inventory => $inventory,
 	  modname => $m,
@@ -238,7 +300,17 @@ sub feedInventory {
 sub retrieveStorage {
     my ($self, $m) = @_;
 
+    my $logger = $self->{logger};
+
     my $storagefile = $self->{params}->{vardir}."/$m.storage";
+
+    if (!exists &retrieve) {
+        eval "use Storable;";
+        if ($@) {
+            $logger->debug("Storable.pm is not avalaible, can't load Backend module data");
+            return;
+        }
+    }
 
     return (-f $storagefile)?retrieve($storagefile):{};
 
@@ -247,13 +319,50 @@ sub retrieveStorage {
 sub saveStorage {
     my ($self, $m, $data) = @_;
 
+    my $logger = $self->{logger};
+
+# Perl 5.6 doesn't provide Storable.pm
+    if (!exists &store) {
+        eval "use Storable;";
+        if ($@) {
+            $logger->debug("Storable.pm is not avalaible, can't save Backend module data");
+            return;
+        }
+    }
+
     my $storagefile = $self->{params}->{vardir}."/$m.storage";
-    if ($data && keys (%$data)>1) {
+    if ($data && keys (%$data)>0) {
 	store ($data, $storagefile) or die;
     } elsif (-f $storagefile) {
 	unlink $storagefile;
     }
 
+}
+
+sub runWithTimeout {
+    my ($self, $m, $func, $params) = @_;
+
+    my $logger = $self->{logger};
+
+    my $ret;
+
+    eval {
+        local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n require
+        alarm 30;
+        $ret = &{$func}($params);
+    };
+
+
+    if ($@) {
+        if ($@ ne "alarm\n") {
+            $logger->debug("runWithTimeout(): unexpected error: $@");
+        } else {
+            $logger->debug("$m killed by a timeout.");
+            return;
+        }
+    } else {
+        return $ret;
+    }
 }
 
 1;
