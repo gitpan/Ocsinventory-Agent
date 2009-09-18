@@ -7,10 +7,9 @@ sub check {
   my $params = shift;
 
   # Do not run an package inventory if there is the --nosoft parameter
-  return if ($params->{params}->{nosoft});
+  return if ($params->{config}->{nosoft});
 
-  `lslpp -l 2>&1`;
-  return if ($? >> 8)!=0;
+  return unless can_run("lslpp");
   1;
 }
 
@@ -26,7 +25,7 @@ sub run {
     next unless ($entry[1]);
     next if $entry[1] =~ /^device/;
 
-    $inventory->addSoftwares({
+    $inventory->addSoftware({
 	'COMMENTS'      => $entry[6],
 	'FOLDER'	=> $entry[0],
 	'NAME'          => $entry[1],

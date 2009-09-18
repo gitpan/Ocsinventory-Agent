@@ -7,15 +7,15 @@ use warnings;
 use ExtUtils::Installed;
 
 sub new {
-  my (undef,$params) = @_;
+  my (undef, $params) = @_;
 
   my $self = {};
 
   $self->{accountconfig} = $params->{accountconfig};
   $self->{accountinfo} = $params->{accountinfo};
+  $self->{config} = $params->{config};
   $self->{inventory} = $params->{inventory};
   my $logger = $self->{logger} = $params->{logger};
-  $self->{params} = $params->{params};
   $self->{prologresp} = $params->{prologresp};
 
   $self->{modules} = {};
@@ -24,9 +24,12 @@ sub new {
 
     can_run => sub {
       my $binary = shift;
+
+      my $calling_namespace = caller(0);
       chomp(my $binpath=`which $binary 2>/dev/null`);
       return unless -x $binpath;
-      1 
+      $self->{logger}->debug(" - $binary found");
+      1
     },
     can_load => sub {
       my $module = shift;
@@ -35,13 +38,23 @@ sub new {
       eval "package $calling_namespace; use $module;";
 #      print STDERR "$module not loaded in $calling_namespace! $!: $@\n" if $@;
       return if $@;
+      $self->{logger}->debug(" - $module loaded");
 #      print STDERR "$module loaded in $calling_namespace!\n";
       1;
     },
     can_read => sub {
       my $file = shift;
-      return unless -r $file; 
-      1; 
+      return unless -r $file;
+      $self->{logger}->debug(" - $file can be read");
+      1;
+    },
+    runcmd => sub {
+      my $cmd = shift;
+      return unless $cmd;
+
+      # $self->{logger}->debug(" - run $cmd");
+
+      return `$cmd`;
     }
   };
 
@@ -54,7 +67,7 @@ sub initModList {
   my $self = shift;
 
   my $logger = $self->{logger};
-  my $params = $self->{params};
+  my $config = $self->{config};
 
   my @dirToScan;
   my @installed_mods;
@@ -67,11 +80,11 @@ sub initModList {
   if (!$@) {
     $logger->debug("use Ocsinventory::Agent::Backend::ModuleToLoad to get the modules ".
       "to load. This should not append unless you use the standalone agent built with ".
-      "PAR::Packer (pp)"); 
+      "PAR::Packer (pp)");
     push @installed_mods, @Ocsinventory::Agent::Backend::ModuleToLoad::list;
   }
 
-  if ($params->{devlib}) {
+  if ($config->{devlib}) {
   # devlib enable, I only search for backend module in ./lib
     push (@dirToScan, './lib');
   } else {
@@ -130,7 +143,7 @@ sub initModList {
       $logger->debug($m." already loaded.");
       next;
     }
-    
+
     eval "use $m;";
     if ($@) {
       $logger->debug ("Failed to load $m: $@");
@@ -158,7 +171,7 @@ sub initModList {
 
   }
 
-# the sort is just for the presentation 
+# the sort is just for the presentation
   foreach my $m (sort keys %{$self->{modules}}) {
     next unless $self->{modules}->{$m}->{checkFunc};
 # find modules to disable and their submodules
@@ -169,9 +182,10 @@ sub initModList {
         {
             accountconfig => $self->{accountconfig},
             accountinfo => $self->{accountinfo},
+            config => $self->{config},
             inventory => $self->{inventory},
             logger => $self->{logger},
-            params => $self->{params},
+            params => $self->{params}, # Compatibiliy with agent 0.0.10 <=
 	    prologresp => $self->{prologresp},
 	    mem => $self->{modules}->{$m}->{mem},
 	    storage => $self->{modules}->{$m}->{storage},
@@ -228,7 +242,7 @@ sub runMod {
 
   foreach (@{$self->{modules}->{$m}->{runAfter}}) {
     if (!$_->{name}) {
-# The name is defined during module initialisation so if I 
+# The name is defined during module initialisation so if I
 # can't read it, I can suppose it had not been initialised.
       $logger->fault ("Module `$m' need to be runAfter a module not found.".
         "Please fix its runAfter entry or add the module.");
@@ -254,9 +268,10 @@ sub runMod {
           {
               accountconfig => $self->{accountconfig},
               accountinfo => $self->{accountinfo},
+              config => $self->{config},
               inventory => $inventory,
               logger => $logger,
-              params => $self->{params},
+              params => $self->{params}, # For compat with agent 0.0.10 <=
               prologresp => $self->{prologresp},
               mem => $self->{modules}->{$m}->{mem},
               storage => $self->{modules}->{$m}->{storage},
@@ -276,8 +291,6 @@ sub feedInventory {
   my $inventory;
   if ($params->{inventory}) {
     $inventory = $params->{inventory};
-  } else {
-    $inventory = $self->{params}->{inventory};
   }
 
   if (!keys %{$self->{modules}}) {
@@ -295,6 +308,9 @@ sub feedInventory {
 
 # Execution time
   $inventory->setHardware({ETIME => time() - $begin});
+
+  $inventory->{isInitialised} = 1;
+
 }
 
 sub retrieveStorage {
@@ -302,7 +318,7 @@ sub retrieveStorage {
 
     my $logger = $self->{logger};
 
-    my $storagefile = $self->{params}->{vardir}."/$m.storage";
+    my $storagefile = $self->{config}->{vardir}."/$m.storage";
 
     if (!exists &retrieve) {
         eval "use Storable;";
@@ -330,7 +346,7 @@ sub saveStorage {
         }
     }
 
-    my $storagefile = $self->{params}->{vardir}."/$m.storage";
+    my $storagefile = $self->{config}->{vardir}."/$m.storage";
     if ($data && keys (%$data)>0) {
 	store ($data, $storagefile) or die;
     } elsif (-f $storagefile) {
@@ -345,12 +361,14 @@ sub runWithTimeout {
     my $logger = $self->{logger};
 
     my $ret;
-
+    
     eval {
         local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n require
-        alarm 30;
+        my $timeout = $params->{accountinfo}{config}{backendCollectTimeout};
+        alarm $timeout;
         $ret = &{$func}($params);
     };
+    alarm 0;
 
 
     if ($@) {

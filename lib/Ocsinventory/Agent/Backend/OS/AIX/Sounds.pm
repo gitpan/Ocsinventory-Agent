@@ -1,7 +1,7 @@
 package Ocsinventory::Agent::Backend::OS::AIX::Sounds;
 use strict;
 
-sub check {`which lsdev 2>&1`; ($? >> 8)?0:1}
+sub check {can_run("lsdev")}
 
 sub run {
   my $params = shift;
@@ -10,7 +10,7 @@ sub run {
 	for(`lsdev -Cc adapter -F 'name:type:description'`){
 		if(/audio/i){
 			if(/^\S+\s([^:]+):\s*(.+?)(?:\(([^()]+)\))?$/i){
-			 $inventory->addSounds({
+			 $inventory->addSound({
 	  			'DESCRIPTION'  => $3,
 	  			'MANUFACTURER' => $2,
 	  			'NAME'     => $1,

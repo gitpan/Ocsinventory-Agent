@@ -199,7 +199,11 @@ sub download_prolog_reader{
 			# Special value INSTALL_PATH
 			$_->{CERT_PATH} =~ s/INSTALL_PATH/$current_context->{OCS_AGENT_INSTALL_PATH}/;
 			$_->{CERT_FILE} =~ s/INSTALL_PATH/$current_context->{OCS_AGENT_INSTALL_PATH}/;
-			
+		
+            if (!-f $_->{CERT_FILE}) {
+                &log("No certificat found in ".$_->{CERT_FILE});
+            }
+
 			# Getting info file
 			&log("Retrieving info file for $fileid");
 			
@@ -858,7 +862,7 @@ sub done{
 	open DONE, ">$p->{'ID'}/done";
 	close(DONE);
 	# Put it in history file
-	open DONE, ">>history" or warn("Cannot open history file: $!");
+	open DONE, "history" or warn("Cannot open history file: $!");
 	flock(DONE, LOCK_EX);
 	my @historyIds = <DONE>;
 	if( &_already_in_array($p->{'ID'}, @historyIds) ){

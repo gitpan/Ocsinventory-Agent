@@ -2,7 +2,18 @@ package Ocsinventory::Agent::Backend::OS::Solaris::CPU;
 
 use strict;
 
-sub check { can_run ("memconf") }
+sub check {
+  my $params = shift;
+
+  my $logger = $params->{logger};
+
+  if (!can_run ("memconf")) {
+    $logger->debug('memconf not found in $PATH');
+    return;
+  }
+
+  1;
+}
 
 sub run {
   my $params = shift;
@@ -31,20 +42,23 @@ sub run {
   #	1               Sun Microsystems, Inc. Sun Fire 880 (4 X UltraSPARC-III 750MHz)
   #	2               Sun Microsystems, Inc. Sun Fire V490 (2 X dual-thread UltraSPARC-IV 1350MHz)
   #	3               Sun Microsystems, Inc. Sun-Fire-T200 (Sun Fire T2000) (8-core quad-thread UltraSPARC-T1 1000MHz)
+  #	4		Sun Microsystems, Inc. SPARC Enterprise T5220 (4-core 8-thread UltraSPARC-T2 1165MHz)
   #
+  if ($model eq "SUNW,Sun-Fire-280R") { $sun_class_cpu = 1; }
   if ($model eq "SUNW,Sun-Fire-480R") { $sun_class_cpu = 1; }
   if ($model eq "SUNW,Sun-Fire-V240") { $sun_class_cpu = 1; }
   if ($model eq "SUNW,Sun-Fire-V250") { $sun_class_cpu = 1; }
   if ($model eq "SUNW,Sun-Fire-V490") { $sun_class_cpu = 2; }
   if ($model eq "SUNW,Sun-Fire-T200") { $sun_class_cpu = 3; }
+  if ($model eq "SUNW,SPARC-Enterprise-T5220") { $sun_class_cpu = 4; }
 
   if($sun_class_cpu == 0)
   {
   # if our maschine is not in one of the sun classes from upside, we use psrinfo
 	# a generic methode
-    foreach (`psrinfo -v`) 
+    foreach (`psrinfo -v`)
     {
-      if (/^\s+The\s(\w+)\sprocessor\soperates\sat\s(\d+)\sMHz,/) 
+      if (/^\s+The\s(\w+)\sprocessor\soperates\sat\s(\d+)\sMHz,/)
       {
         $cpu_type = $1;
         $cpu_speed = $2;
@@ -53,9 +67,9 @@ sub run {
     }
   }
 
-  if($sun_class_cpu == 1) 
+  if($sun_class_cpu == 1)
   {
-    foreach (`memconf 2>&1`) 
+    foreach (`memconf 2>&1`)
     {
       if(/^Sun Microsystems, Inc. Sun Fire\s+\S+\s+\((\d+)\s+X\s+(\S+)\s+(\d+)/)
       {
@@ -63,12 +77,18 @@ sub run {
         $cpu_type = $2;
         $cpu_speed = $3;
       }
+      elsif (/^Sun Microsystems, Inc. Sun Fire\s+\S+\s+\((\S+)\s+(\d+)/)
+      {
+          $cpu_slot="1";
+          $cpu_type=$1;
+          $cpu_speed=$2;
+      }
     }
-  } 
+  }
 
-  if($sun_class_cpu == 2) 
+  if($sun_class_cpu == 2)
   {
-    foreach (`memconf 2>&1`) 
+    foreach (`memconf 2>&1`)
     {
       if(/^Sun Microsystems, Inc. Sun Fire\s+\S+\s+\((\d+)\s+X\s+(\S+)\s+(\S+)\s+(\d+)/)
       {
@@ -77,10 +97,10 @@ sub run {
         $cpu_speed = $4;
       }
     }
-  } 
-  if($sun_class_cpu == 3) 
+  }
+  if($sun_class_cpu == 3)
   {
-    foreach (`memconf 2>&1`) 
+    foreach (`memconf 2>&1`)
     {
       if(/^Sun Microsystems, Inc.\s+\S+\s+\(\S+\s+\S+\s+\S+\)\s+\((\S+)\s+(\S+)\s+(\S+)\s+(\d+)/)
       {
@@ -90,7 +110,19 @@ sub run {
         $cpu_speed = $4;
       }
     }
-  } 
+  }
+  if($sun_class_cpu == 4)
+  {
+    foreach (`memconf 2>&1`)
+    {
+      if(/^Sun Microsystems, Inc\..+\((\S+)\s+(\S+)\s+(\S+)\s+(\d+)(\w+)\)$/)
+      {
+        $cpu_slot = 1;
+        $cpu_type = $3 . " (" . $1 . " " . $2 . ")";
+        $cpu_speed = $4;
+      }
+    }
+  }
   # for debug only
   #print "cpu_slot: " . $cpu_slot . "\n";
   #print "cpu_type: " . $cpu_type . "\n";

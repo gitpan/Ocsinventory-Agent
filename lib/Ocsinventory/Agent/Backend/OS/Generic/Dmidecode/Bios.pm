@@ -8,10 +8,12 @@ sub run {
 # Parsing dmidecode output
 # Using "type 0" section
   my( $SystemSerial , $SystemModel, $SystemManufacturer, $BiosManufacturer,
-    $BiosVersion, $BiosDate, $YEAR, $MONTH, $DAY, $HOUR, $MIN, $SEC);
+    $BiosVersion, $BiosDate, $YEAR, $MONTH, $DAY, $HOUR, $MIN, $SEC, $AssetTag);
 
   my @dmidecode = `dmidecode`;
   s/^\s+// for (@dmidecode);
+
+  # get the BIOS values
   my $flag=0;
   for(@dmidecode){
     $flag=1 if /dmi type 0,/i;
@@ -20,7 +22,8 @@ sub run {
     if((/^release\ date:\s*(.+?)(\s*)$/i) && ($flag)) { $BiosDate = $1 }
     if((/^version:\s*(.+?)(\s*)$/i) && ($flag)) { $BiosVersion = $1 }
   }
-  
+ 
+  # Try to query the machine itself 
   $flag=0;
   for(@dmidecode){
     if(/dmi type 1,/i){$flag=1;}
@@ -30,6 +33,7 @@ sub run {
     if((/^(manufacturer|vendor):\s*(.+?)(\s*)$/i) && ($flag)) { $SystemManufacturer = $2 }
   }
 
+  # Failback on the motherbord
   $flag=0;
   for(@dmidecode){
     if(/dmi type 2,/i){$flag=1;}
@@ -37,6 +41,22 @@ sub run {
     if((/^serial number:\s*(.+?)(\s*)/i) && ($flag) && (!$SystemSerial)) { $SystemSerial = $1 }
     if((/^product name:\s*(.+?)(\s*)/i) && ($flag) && (!$SystemModel)) { $SystemModel = $1 }
     if((/^manufacturer:\s*(.+?)(\s*)/i) && ($flag) && (!$SystemManufacturer)) { $SystemManufacturer = $1 }
+  }
+
+  $flag=0;
+  for(@dmidecode){
+      if ($flag) {
+          if (/^Asset Tag:\s*(.+\S)/i) {
+              $AssetTag = $1;
+              $AssetTag = '' if $AssetTag eq 'Not Specified';
+              last;
+          } elsif (/dmi type \d+,/i) {  # End of the section
+              last;
+          }
+      }
+      if (/dmi type 3,/i) {
+          $flag=1;
+      }
   }
 
 # Some bioses don't provide a serial number so I check for CPU ID (e.g: server from dedibox.fr)
@@ -55,6 +75,7 @@ sub run {
 
 # Writing data
   $inventory->setBios ({
+      ASSETTAG => $AssetTag,
       SMANUFACTURER => $SystemManufacturer,
       SMODEL => $SystemModel,
       SSN => $SystemSerial,

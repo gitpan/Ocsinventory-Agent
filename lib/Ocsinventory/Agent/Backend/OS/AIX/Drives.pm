@@ -1,14 +1,7 @@
 package Ocsinventory::Agent::Backend::OS::AIX::Drives;
 
 use strict;
-sub check {
-  `which df 2>&1`;
-  return if ($? >> 8)!=0;
-
-  `df 2>&1`;
-  return if ($? >> 8)!=0;
-  1;
-}
+sub check {can_run("df")}
 
 sub run {
   my $params = shift;
@@ -24,9 +17,11 @@ sub run {
   my @fstype;
 #Looking for mount points and disk space
 # Aix option -kP 
-  for(`df -kP`){
-    if (/^Filesystem\s*1024-blocks.*/){next};
-    if(/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\n/){	 
+  for(`df -kP`) {
+
+    next if /^Filesystem\s*1024-blocks.*/;
+
+    if (/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\n/) {
       $type = $1;
       @fs=`lsfs -c $6`;
       @fstype = split /:/,$fs[1];     
@@ -35,13 +30,16 @@ sub run {
       $free = sprintf("%i",($4/1024));
       $volumn = $6;	  
     }
-    $inventory->addDrives({
+
+    next if $filesystem =~ /procfs/;
+
+    $inventory->addDrive({
 	FREE => $free,
 	FILESYSTEM => $filesystem,
 	TOTAL => $total,
 	TYPE => $type,
 	VOLUMN => $volumn
-	})
+	});
 
   }
 }

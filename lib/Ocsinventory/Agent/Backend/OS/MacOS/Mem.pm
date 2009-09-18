@@ -18,17 +18,28 @@ sub run {
     my $h = $pro->gettype('SPMemoryDataType');
     return(undef) unless(ref($h) eq 'HASH');
 
+    # Workaround for MacOSX 10.5.7
+    if ($h->{'Memory Slots'}) {
+      $h = $h->{'Memory Slots'};
+    }
+
+
     foreach my $x (keys %$h){
+        next unless $x =~ /^BANK|SODIMM|DIMM/;
         # tare out the slot number
         my $slot = $x;
-		# memory in 10.5
+	# memory in 10.5
         if($slot =~ /^BANK (\d)\/DIMM\d/){
             $slot = $1;
         }
-		# 10.4
-		if($slot =~ /^SODIMM(\d)\/.*$/){
-			$slot = $1;
-		}
+	# 10.4
+	if($slot =~ /^SODIMM(\d)\/.*$/){
+		$slot = $1;
+	}
+	# 10.4 PPC
+	if($slot =~ /^DIMM(\d)\/.*$/){
+		$slot = $1;
+	}
 
         my $size = $h->{$x}->{'Size'};
 
@@ -41,8 +52,8 @@ sub run {
             'CAPACITY'      => $size,
             'SPEED'         => $h->{$x}->{'Speed'},
             'TYPE'          => $h->{$x}->{'Type'},
-            'SERIALNUMBER ' => $h->{$x}->{'Serial Number'},
-            'DESCRIPTION'   => $h->{$x}->{'Part Number'} | $x,
+            'SERIALNUMBER' => $h->{$x}->{'Serial Number'},
+            'DESCRIPTION'   => $h->{$x}->{'Part Number'} || $x,
             'NUMSLOTS'      => $slot,
             'CAPTION'       => 'Status: '.$h->{$x}->{'Status'},
         });

@@ -8,7 +8,7 @@ sub check {
 
     return unless can_load("Mac::SysProfile");
     # Do not run an package inventory if there is the --nosoft parameter
-    return if ($params->{params}->{nosoft});
+    return if ($params->{config}->{nosoft});
 
     1;
 }
@@ -27,7 +27,7 @@ sub run {
         my $a = $apps->{$app};
         my $kind = $a->{'Kind'} ? $a->{'Kind'} : 'UNKNOWN';
         my $comments = '['.$kind.']';
-        $inventory->addSoftwares({
+        $inventory->addSoftware({
             'NAME'      => $app,
             'VERSION'   => $a->{'Version'} || 'unknown',
             'COMMENTS'  => $comments,

@@ -25,7 +25,7 @@ sub run {
 	chomp $scsi[$n];
 	/^(.+):(.+)/;
 	$device=$1;
-	$description=$1." ".$2;
+	$description=$2;
     @lsattr=`lsattr -EOl $device -a 'size_in_mb'`;
 	for (@lsattr){
 	  if (! /^#/ ){
@@ -41,14 +41,53 @@ sub run {
 	  if ((/^FC .+/) && $flag) {$flag=0;last}
 	}
 	$inventory->addStorages({
+	  NAME => $device,
 	  MANUFACTURER => $manufacturer,
 	  MODEL => $model,
 	  DESCRIPTION => $description,
-	  TYPE => 'SCSI',
+	  TYPE => 'disk',
 	  DISKSIZE => $capacity
     });
 	$n++;
   }
+#Virtual disks
+  @scsi= ();
+  @lsattr= ();
+  $n=0;
+  @scsi=`lsdev -Cc disk -s vscsi -F 'name:description'`;
+  for(@scsi){
+        chomp $scsi[$n];
+        /^(.+):(.+)/;
+        $device=$1;
+        $description=$2;
+	@lsattr=`lspv  $device 2>&1`;
+	for (@lsattr){
+		if ( ! ( /^0516-320.*/ ) )
+		{
+          		if (/TOTAL PPs:/ ) {
+	
+				($capacity,$model) = split(/\(/, $_);
+				($capacity,$model) = split(/ /,$model);
+			}
+        	}
+		else
+		{
+			$capacity=0;
+		}
+	}
+        $inventory->addStorages({
+          MANUFACTURER => "VIO Disk",
+          MODEL => "Virtual Disk",
+          DESCRIPTION => $description,
+          TYPE => 'disk',
+	  NAME => $device,
+          DISKSIZE => $capacity
+    });
+        $n++;
+  }
+
+
+
   #CDROM
   @scsi= ();
   @lsattr= ();
@@ -59,7 +98,7 @@ sub run {
     /^(.+):(.+):(.+)/;
     $device=$1;
     $status=$3;
-    $description=$1." ".$2;
+    $description=$2;
     $capacity="";
     if (($status =~ /Available/)){
       @lsattr=`lsattr -EOl $device -a 'size_in_mb'`;
@@ -78,10 +117,11 @@ sub run {
 		if ((/^FC .+/) && $flag) {$flag=0;last}
       }
       $inventory->addStorages({
+	    NAME => $device,
 	    MANUFACTURER => $manufacturer,
 	    MODEL => $model,
 	    DESCRIPTION => $description,
-	    TYPE => 'SCSI',
+	    TYPE => 'cd',
 	    DISKSIZE => $capacity
       });
       $n++;
@@ -99,7 +139,7 @@ sub run {
 	/^(.+):(.+):(.+)/;
 	$device=$1;
 	$status=$3;
-	$description=$1." ".$2;
+	$description=$2;
 	$capacity="";
 	if (($status =~ /Available/)){
       @lsattr=`lsattr -EOl $device -a 'size_in_mb'`;
@@ -117,10 +157,11 @@ sub run {
 		if ((/^FC .+/) && $flag) {$flag=0;last}
    	  }
    	  $inventory->addStorages({
+	    NAME => $device,
 	    MANUFACTURER => $manufacturer,
 	    MODEL => $model,
 	    DESCRIPTION => $description,
-	    TYPE => 'SCSI',
+	    TYPE => 'tape',
 	    DISKSIZE => $capacity
       });
       $n++;
@@ -138,7 +179,7 @@ sub run {
     /^(.+):(.+):(.+)/;
     $device=$1;
     $status=$3;
-    $description=$1." ".$2;
+    $description=$2;
     $capacity="";
     if (($status =~ /Available/)){
       @lsattr=`lsattr -EOl $device -a 'fdtype'`;
@@ -151,10 +192,11 @@ sub run {
       #On le force en retour taille disquette non affichable
       $capacity ="";
       $inventory->addStorages({
+	    NAME => $device,
 	    MANUFACTURER => 'N/A',
 	    MODEL => 'N/A',
 	    DESCRIPTION => $description,
-	    TYPE => 'SCSI',
+	    TYPE => 'floppy',
 	    DISKSIZE => ''
       });
 	  $n++;

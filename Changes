@@ -1,5 +1,110 @@
 Revision history for Ocsinventory::Agent
 
+futur
+       * Can use Net::CUPS to find the default printer
+       * AIX: Hide procfs in Filesystem
+       * OS::Linux::Storages, correctly retrieve the serial (Vladimir ELISSEEV)
+       * load $http_proxy env settings and --proxy option is available
+       * Add OS::Linux::Distro::NonLSB::ArchLinux (Julien SAFAR)
+       * New Backend OS::Generic::Processes 
+       * Linux/BSD: detect DNS servers config 
+       * Solaris: Better output for $OSVErsion (Vladimir ELISSEEV)
+       * Solaris: Sun Fire T1000 patches for memory (Vladimir ELISSEEV)
+       * Solaris: memory SPARC Enterprise T5220 (Vladimir ELISSEEV)
+       * Solaris: CPU SPARC Enterprise T5220 (Vladimir ELISSEEV)
+       * Solaris: CPU SPARC Enterprise T5220 (Vladimir ELISSEEV)
+       * Linux: split the /proc/cpuinfo parsing depending on the arch
+       * Linux: drop Linux::Controllers which is duplicated with
+         Generic::Lspci::Controllers (Vladimir ELISSEEV)
+       * AIX: Various fixes in Memory.pm (Sebastien DAGNICOURT)
+       * AIX: Storages.pm, Virtual disks support and fixes (Sebastien DAGNICOURT)
+       * Backend.pm: Bump the default timeout from 30 to 180 secondes
+       * Agent/XML/Inventory: Fix when version == 0, bug found by neisen
+       * AIX: device type adjustment (Sebastien DAGNICOURT)
+       * Solaris: Sun-Fire-V440 support (Sebastien DAGNICOURT)
+       * Add a missing space is the name banner in --debug mode
+       * Agent/XML/Inventory.pm: Add FROM and INSTALLDATE fields in software
+         list and LASTLOGGEDUSER DATELASTLOGGEDUSER
+         in HARDWARE (Nicolas EISEN)
+       * Initialize etcdir key even if there is no config file
+       * CompatibilityLayer: correctly set $debug
+       * CompatibilityLayer: better log messages
+       * getOptionInfoByName return an array ref now
+       * rename getOptionInfoByName to getOptionsInfoByName
+       * --debug print the XML on STDERR
+       * Rename the params key to config to avoid ambiguity
+         with $params
+       * set HARDWARE/DEFAULTGATEWAY (Nicolas EISEN)
+       * RPM: collect the install date and the size (Nicolas EISEN)
+       * Linux: Collect LASTLOGGEDUSER and DATELASTLOGGEDUSER (Nicolas EISEN)
+       * DPKG: collect the Installed-Size (Nicolas EISEN)
+       * Linux: Collect the ext{2,3,4} and xfs serial number
+       * Linux: Collect the ext{2,3,4} creation date
+       * Add a warning when no certificat is found
+       * Turns off alarm once it's backend run is finish
+       * Fix the IPMI module detection
+       * Linux: Store the PCISLOT and the driver name
+       * NETWORKDS, only store Networks with an address
+       * Linux: detect virtual network device
+       * Linux: Store CONTROLLERS/DRIVER and CONTROLLERS/PCISLOT
+       * Linux: Collects xfs, ext{2,3,4} and vfat label
+       * runs the backend module from main() it's possible to
+         reuse the Backend object.
+       * Linux: filter non standard MAC address returned by ifconfig like
+         00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00 mac
+       * Linux: Fix the Uptime check()
+       * Preliminary libvirt support
+       * Partial rewrite of the Download.pm backend
+       * Add a warning if the user is no root, thanks Nicolas EISEN and
+         Sylvain LUCE
+       * SPARC-Enterprise M4000 and M5000 support (Sylvain LUCE)
+       * Libvirt: collect VCPU info (Philippe LIBAT)
+       * Add Virtualization::Xen module (Philippe LIBAT)
+       * Solaris: add a warning if memconf is not in $PATH
+       * Switch the XML content from ISO-8859-1 to UTF-8, BTW we force
+         LC_ALL=C...
+       * Fix the history flood in Download.pm (Pascal DANEK) 
+       	 https://sourceforge.net/tracker/index.php?func=detail&aid=2806585&group_id=58373&atid=487492
+       * Stores PCIID in CONTROLLERS/PCIID
+       * Storage the monitor EDID string in BASE64 and UUENCODE
+       * Linux: Storages: reorganize the code base and use lshal
+       * Linux: Drives, complete inforamtions with lshal (Nicolas EISEN)
+       * Linux: fix the PowerPC CPU detection
+         https://sourceforge.net/tracker/?func=detail&atid=487492&aid=2043221&group_id=58373
+       * Warns the user during the install process if one of
+         the recommended module is not installed
+       * Update out copy of memconf, thanks WeatherDave who notified the new
+         revision and of course Tom Schmidt who do a great job 
+       * MacOSX: Avoid a scalar used has hash ref error, thanks Adadov
+       * Save VIDEOS/MEMORY and VIDEOS/RESOLUTION
+       * MacOSX: Correctilly detect Up/Down network interfaces
+         (David OLIVIER)
+       * AddNetwork() doesn't ignore network with no IP address
+         (David OLIVIER)
+       * add --backend-collect-timeout parameter (Nicolas EISEN)
+       * MacOSX: convert the IP mask from hex (David OLIVIER)
+       * MacOSX: add a workaround to avoid Mac::SysProfile failure on
+         MacOSX 10.5.7 (David OLIVIER)
+       * Add Virtualization::VirtualBox module (Nicolas EISEN)
+       * Add Virtualization::Qemu module (Nicolas EISEN)
+       * Add Virtualization::Vmsystem module (Nicolas EISEN)
+       * Better smartctl detection (Nicolas EISEN)
+       * optimization and vm users detection Virtualization::VirtualBox (Nicolas EISEN)
+       * Add Virtualization::VmwareFusion module (Walid NOUH)
+       * Don't use hdparm prior 9.2.2 anymore to avoid crap in kernel log, see
+         http://forums.ocsinventory-ng.org/viewtopic.php?pid=20768
+       * Correctly detect ipmitool
+       * Solaris: i86pc Memory support (Jean-François BOUCHER)
+       * Solaris Zone support (Maurizio BERTABONI)
+       * Always send tag, even if server already has one
+       * Add the byHand software collect method (Sébastien DAGNICOURT)
+       * add logging to can_read(), can_load() and can_run()
+       * use addUser() instead of setHardware() 
+       * Add the runcmd() in the Backend modules
+       * Move Ocsinventory::Agent in a .pm and add a wrapper script to load
+         it in order to fix:
+         https://bugs.launchpad.net/ocsinventory-unix-agent/+bug/426812 
+
 1.0.1   Sun, 22 Mar 2009 20:48:49 +0100
        * Fix a typo in Ocsinventory::Agent::Backend::OS::AIX::Memory 
 
