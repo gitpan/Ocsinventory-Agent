@@ -1,6 +1,36 @@
 Revision history for Ocsinventory::Agent
 
-futur
+1.1     Fri, 06 Nov 2009 16:07:08 +0100
+       * addMemorie() renamed to addMemories(), this had been broken during
+         the addMemories() → addMemory() transition
+       * Debug mode: msg "check function failed" changed to "ignored" since
+         the fails may be wanted by the check() function
+       * CompatibilityLayer: $self->{params} changed to $self->{config},
+         this restore the debug mode in Download.pm
+       * Continue XML::Inventory functions name clean up. Rename:
+        - addSlots() calls to addSlot()
+        - addMemories() calls to addMemory()
+       * Move ocsinventory-agent POD documentation frol Ocsinventory::Agent
+         to the ocsinventory-agent shell script. So now the manpage has the
+         correct name
+       * Fix RPM output parsing (Remi COLLET)
+       * VMWareESX: avoid breakage is VM has spaces in its name
+         (Christian Michallek)
+       * Try to detect kvm --uuid value
+       * Makefile.PL, check for Net::SSLeay
+       * Move Ocsinventory::Agent in a .pm and add a wrapper script to load
+         in order to by able to process --devlib
+       * Parallels.pm: doesn't use sudo anymore and check for
+         --scan-homedirs
+       * Prune 'Mac OS X' from the version on Mac + typo fixes (Scott HANNAHS)
+       * POD doc, add a paragraph about the config file
+       * LP: #462529, Fix EDID screen detection, thanks Sergio MERINO
+       * Use boolean for networks/virtualdev
+       * Generic/Screen: chomp uuencode output
+       * Generic/Screen: HSD code for "Hanns.G" (Remi COLLET)
+       * postinst.pl, put user $PATH in /etc/cron.d/ocsinventory-agent
+
+1.1_beta1    Fri, 18 Sep 2009 11:54:12 +0200
        * Can use Net::CUPS to find the default printer
        * AIX: Hide procfs in Filesystem
        * OS::Linux::Storages, correctly retrieve the serial (Vladimir ELISSEEV)
@@ -101,11 +131,8 @@ futur
        * add logging to can_read(), can_load() and can_run()
        * use addUser() instead of setHardware() 
        * Add the runcmd() in the Backend modules
-       * Move Ocsinventory::Agent in a .pm and add a wrapper script to load
-         it in order to fix:
-         https://bugs.launchpad.net/ocsinventory-unix-agent/+bug/426812 
 
-1.0.1   Sun, 22 Mar 2009 20:48:49 +0100
+1.0.1    Sun, 22 Mar 2009 20:48:49 +0100
        * Fix a typo in Ocsinventory::Agent::Backend::OS::AIX::Memory 
 
 1.0    Sun, 22 Mar 2009 20:14:26 +0100

@@ -3,7 +3,7 @@ package Ocsinventory::Agent::Config;
 use strict;
 use Getopt::Long;
 
-our $VERSION = '1.1_beta1';
+our $VERSION = '1.1';
 my $basedir = '';
 my $default = {
   'daemon'    =>  0,
@@ -33,6 +33,7 @@ my $default = {
   'nosoftware'=>  0,
   'delaytime' =>  '3600', # max delay time (seconds)
   'backendCollectTimeout'   => '180',   # timeOut of process : see Backend.pm
+  'scanhomedirs' => 0,
 
   # Other values that can't be changed with the
   # CLI parameters
@@ -131,7 +132,8 @@ sub loadUserParams {
 		"version"         =>   \$self->{config}{version},
 		"w|wait=s"        =>   \$self->{config}{wait},
 #  "x|xml"          =>   \$self->{config}{xml},
-		"delaytime"	  =>   \$self->{config}{delaytime},
+		"delaytime"       =>   \$self->{config}{delaytime},
+		"scan-homedirs"   =>   \$self->{config}{scanhomedirs},
 	);
 
 	$self->help() if (!GetOptions(%options) || $self->{config}{help});
@@ -174,12 +176,13 @@ sub help {
   "Will be ignored by server if a value already exists.\n";
   print STDERR "\t-u --user=USER      user for server auth (".$self->{config}{user}.")\n";
   print STDERR "\t   --version        print the version\n";
-  print STDERR "\t-w --wait=seconds   wait during a random periode before".
-  "  contacting server like --daemon do (".$self->{config}{wait}.")\n";
+  print STDERR "\t-w --wait=seconds   wait a random period before ".
+  "  contacting server like --daemon does (".$self->{config}{wait}.")\n";
 #  print STDERR "\t-x --xml            write output in a xml file ($self->{config}{xml})\n";
   print STDERR "\t--nosoft            DEPRECATED, use --nosoftware instead\n";
   print STDERR "\t--nosoftware        do not return installed software list (".$self->{config}{nosoftware}.")\n";
-  print STDERR "\t--delaytime	      set a max delay time if no PROLOG_FREQ is set (".$self->{config}{delaytime}.")\n";
+  print STDERR "\t--delaytime	        set a max delay time if no PROLOG_FREQ is set (".$self->{config}{delaytime}.")\n";
+  print STDERR "\t--scan-homedirs     permit to scan home user directories (".$self->{config}{scanhomedirs}.")\n" ;
 
   print STDERR "\n";
   print STDERR "Manpage:\n";
