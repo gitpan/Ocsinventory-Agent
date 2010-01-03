@@ -104,7 +104,8 @@ sub download_prolog_reader{
 				# Type of param
 				if($_->{'TYPE'} eq 'CONF'){
 					# Writing configuration
-					open FH, ">$opt_dir/config" or die("Cannot open/create config file");
+					open FH, ">$opt_dir/config" or die("Cannot open/create
+                        config file ($opt_dir/config)");
 					if(flock(FH, LOCK_EX)){
 						&log("Writing config file.");
 						print FH XMLout($_, RootName => 'CONF');
@@ -241,7 +242,7 @@ sub download_prolog_reader{
 					$server_name = $1;
 					$server_port = $2;
 					$server_dir = $3;
-				}elsif($_->{INFO_LOC}=~ /^([^\/]+)(.+)$/){
+				}elsif($_->{INFO_LOC}=~ /^([^\/]+)(.*)$/){
 					$server_name = $1;
 					$server_dir = $2;	
 					$server_port = HTTPS_PORT;
